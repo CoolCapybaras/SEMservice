@@ -1,0 +1,7 @@
+# Visual Studio cache directory
+**/.vs/
+# IntelliJ IDEA cache directory
+**/.idea/
+
+**/bin/
+**/obj/
