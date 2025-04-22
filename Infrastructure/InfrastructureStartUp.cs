@@ -17,6 +17,7 @@ public static class InfrastructureStartUp
         
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+        services.AddScoped<IEventRepository, EventRepository>();
 
         return services;
     }
