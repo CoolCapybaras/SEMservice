@@ -9,6 +9,7 @@ public static class ServicesStartUp
     {
         services.AddScoped<IUserManager, UserManager>();
         services.AddScoped<IUserProfileService, UserProfileService>();
+        services.AddScoped<IEventService, EventService>();
 
         return services;
     }

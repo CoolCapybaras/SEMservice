@@ -78,12 +78,6 @@ builder.Services.AddSwaggerGen(c =>
 // Настраиваем приложение
 var app = builder.Build();
 
-// Применяем миграции
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate();
-}
 
 if (app.Environment.IsDevelopment())
 {
