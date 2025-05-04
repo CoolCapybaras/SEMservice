@@ -7,7 +7,7 @@ using SEM.Domain.Interfaces;
 namespace SEM.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/profile")]
 [Authorize]
 public class ProfileController : ControllerBase
 {

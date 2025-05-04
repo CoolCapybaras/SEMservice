@@ -1,11 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
+using Domain.DTO;
+using Microsoft.AspNetCore.Mvc;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
 
 namespace SEM.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/event")]
 public class EventController: ControllerBase
 {
     private readonly IEventService _eventService;
@@ -15,63 +17,40 @@ public class EventController: ControllerBase
         _eventService = eventService;
     }
     
-    [HttpPost("event_create")]
-    public async Task<IActionResult> Register([FromBody] NewEventRequest request)
+    [HttpPost("create")]
+    public async Task<IActionResult> CreateEvent([FromBody] EventRequest request)
     {
-        var newEvent = new Event
-        {
-            Name = request.Name,
-            Description = request.Description,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            Location = request.Location,
-            Format = request.Format,
-            EventType = request.EventType,
-            ResponsiblePerson = request.ResponsiblePerson,
-            MaxParticipants = request.MaxParticipants
-        };
-
-        var createdEvent = await _eventService.CreateEventAsync(newEvent);
-        
-        var response = MapToResponse(createdEvent);
+        var createdEvent = await _eventService.CreateEventAsync(request);
             
-        return Ok(response);
+        return Ok(createdEvent);
     }
 
-    private static Event MapToResponse(Event nEvent)
+    [HttpGet("{eventId}/event")]
+    public async Task<IActionResult> GetEventById(Guid eventId)
     {
-        return new Event
-        {
-            Name = nEvent.Name,
-            Description = nEvent.Description,
-            StartDate = nEvent.StartDate,
-            EndDate = nEvent.EndDate,
-            Location = nEvent.Location,
-            Format = nEvent.Format,
-            EventType = nEvent.EventType,
-            ResponsiblePerson = nEvent.ResponsiblePerson,
-            MaxParticipants = nEvent.MaxParticipants
-        };
+        var @event = await _eventService.GetEventAsync(eventId);
+
+        return Ok(@event);
     }
 
-    public class NewEventRequest
+    [HttpPost("events")]
+    public async Task<IActionResult> SearchEvents([FromBody] SearchRequest request, int offset, int count)
     {
-        public string Name { get; set; }
+        var events = await _eventService.SerchEventsAsync(request, offset, count);
+        return Ok(events);
+    }
 
-        public string Description { get; set; }
+    [HttpGet("categories")]
+    public async Task<IActionResult> GetAllCategories()
+    {
+        var categories = await _eventService.GetAllCategoriesAsync();
+        return Ok(categories);
+    }
 
-        public DateTime StartDate { get; set; }
-
-        public DateTime EndDate { get; set; }
-
-        public string Location { get; set; }
-
-        public string Format { get; set; }
-
-        public string EventType { get; set; }
-
-        public string ResponsiblePerson { get; set; }
-
-        public int? MaxParticipants { get; set; }
+    [HttpDelete]
+    public async Task<IActionResult> DeleteEvent(Guid eventId)
+    {
+        await _eventService.DeletEvent(eventId);
+        return Ok("Ивент удалён");
     }
 }

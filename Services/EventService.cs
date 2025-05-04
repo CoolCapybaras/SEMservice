@@ -1,4 +1,5 @@
 ﻿using Domain.DTO;
+using Microsoft.EntityFrameworkCore;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
 using SEM.Infrastructure.Data;
@@ -16,33 +17,73 @@ public class EventService: IEventService
         _context = context;
     }
     
-    public async Task<Event> CreateEventAsync(EventRequest request)
+    public async Task<Event> CreateEventAsync(EventRequest newEvent)
     {
-        var newEvent = new Event
+        List<Guid> categories = new List<Guid>();
+        var existingCategories = await _context.Categories
+            .Where(c => newEvent.Categories.Contains(c.Name))
+            .ToListAsync();
+        var newCategoryNames = newEvent.Categories
+            .Except(existingCategories.Select(c => c.Name))
+            .ToList();
+        foreach (var category in newCategoryNames)
         {
-            Name = request.newEvent.Name,
-            Description = request.newEvent.Description,
-            StartDate = request.newEvent.StartDate,
-            EndDate = request.newEvent.EndDate,
-            Location = request.newEvent.Location,
-            Format = request.newEvent.Format,
-            EventType = request.newEvent.EventType,
-            ResponsiblePerson = request.newEvent.ResponsiblePerson,
-            MaxParticipants = request.newEvent.MaxParticipants,
-            EventCategories = request.newEvent.EventCategories
+            var newCategory = new Category
+            {
+                Name = category
+            };
+            await _eventRepository.AddCategoryAsync(newCategory);
+            categories.Add(newCategory.id);
+        }   
+        
+        var neEvent = new Event
+        {
+            Name = newEvent.Name,
+            Description = newEvent.Description,
+            StartDate = newEvent.StartDate,
+            EndDate = newEvent.EndDate,
+            Location = newEvent.Location,
+            Format = newEvent.Format,
+            EventType = newEvent.EventType,
+            ResponsiblePerson = newEvent.ResponsiblePerson,
+            MaxParticipants = newEvent.MaxParticipants,
         };
 
-        newEvent = await _eventRepository.AddEventAsync(newEvent);
+       await _eventRepository.AddEventAsync(neEvent);
+       var newEventId = neEvent.Id;
 
-        foreach (var categoryId in request.newCategorys.)
+        foreach (var categoryId in categories)
         {
-            
+            await _eventRepository.AddEventCategoryConnAsync(newEventId, categoryId);
         }
+
+        return neEvent;
 
     }
 
     public async Task<Event> GetEventAsync(Guid eventId)
     {
         return await _eventRepository.GetEventByIdAsync(eventId);
+    }
+
+    public async Task<List<Event>> SerchEventsAsync(SearchRequest request, int offset, int count)
+    {
+        return await _eventRepository.SearchEvents(request.Start, request.End, request.Name, request.Categories,
+            request.Organizators, request.Format, request.isFreePlaces, offset, count);
+    }
+
+    public async Task<List<Category>> GetAllCategoriesAsync()
+    {
+        return await _eventRepository.GetAllCategoriesAsync();
+    }
+
+    public async Task DeletEvent(Guid eventId)
+    {
+        var @event = await _eventRepository.GetEventByIdAsync(eventId);
+        var eventToDelete = await _context.Events
+            .Include(e => e.EventCategories)
+            .FirstOrDefaultAsync(e => e.Id == @event.Id);
+        if (eventToDelete != null)
+           await _eventRepository.DeleteEventAndUnusedCategoriesAsync(eventToDelete);
     }
 }
