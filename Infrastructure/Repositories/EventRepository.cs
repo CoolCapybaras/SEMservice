@@ -15,7 +15,7 @@ public class EventRepository : IEventRepository
         _context = context;
     }
 
-    public async Task<Event> CreateEventAsync(EventRequest request)
+    public async Task<Event> AddEventAsync(EventRequest request)
     {
         var existingCategories = await _context.Categories
             .Where(c => request.Categories.Contains(c.Name))
@@ -24,9 +24,6 @@ public class EventRepository : IEventRepository
             .Where(name => !existingCategories.Any(c => c.Name == name))
             .Select(name => new Category { Name = name })
             .ToList();
-
-        _context.Categories.AddRange(newCategories);
-        await _context.SaveChangesAsync();
 
         var newEvent = new Event
         {
@@ -41,6 +38,7 @@ public class EventRepository : IEventRepository
             MaxParticipants = request.MaxParticipants ?? -1
         };
 
+        _context.Categories.AddRange(newCategories);
         _context.Events.Add(newEvent);
         await _context.SaveChangesAsync();
 
@@ -99,7 +97,7 @@ public class EventRepository : IEventRepository
             query = query.Where(e => e.Format == request.Format);
         }
 
-        // Фильтр ао свободным местам
+        // Фильтр по свободным местам
         if (request.HasFreePlaces == true)
         {
             query = query.Where(e => e.Users.Count < e.MaxParticipants);
@@ -142,7 +140,6 @@ public class EventRepository : IEventRepository
         var categoryIds = eventCategories.Select(ec => ec.CategoryId).ToList();
 
         _context.EventCategories.RemoveRange(eventCategories);
-
         _context.Events.Remove(eventToDelete);
         await _context.SaveChangesAsync();
 

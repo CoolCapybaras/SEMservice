@@ -5,7 +5,7 @@ namespace SEM.Domain.Interfaces;
 
 public interface IEventRepository
 {
-    Task<Event> CreateEventAsync(EventRequest request);
+    Task<Event> AddEventAsync(EventRequest request);
     Task<IEnumerable<Event>> GetAllEventsAsync();
     Task<Event?> GetEventByIdAsync(Guid eventId);
     Task<List<Event>> SearchEventsAsync(SearchRequest request);

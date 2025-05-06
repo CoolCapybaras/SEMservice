@@ -15,7 +15,7 @@ public class EventService : IEventService
 
     public async Task<Event> CreateEventAsync(EventRequest request)
     {
-        return await _eventRepository.CreateEventAsync(request);
+        return await _eventRepository.AddEventAsync(request);
     }
 
     public async Task<Event?> GetEventByIdAsync(Guid eventId)
