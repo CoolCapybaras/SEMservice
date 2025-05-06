@@ -1,12 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Domain.DTO;
+using Microsoft.AspNetCore.Mvc;
 using SEM.Domain.Interfaces;
-using SEM.Domain.Models;
 
 namespace SEM.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class EventController: ControllerBase
+[Route("api/events")]
+public class EventController : ControllerBase
 {
     private readonly IEventService _eventService;
 
@@ -14,64 +14,32 @@ public class EventController: ControllerBase
     {
         _eventService = eventService;
     }
-    
-    [HttpPost("event_create")]
-    public async Task<IActionResult> Register([FromBody] NewEventRequest request)
-    {
-        var newEvent = new Event
-        {
-            Name = request.Name,
-            Description = request.Description,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            Location = request.Location,
-            Format = request.Format,
-            EventType = request.EventType,
-            ResponsiblePerson = request.ResponsiblePerson,
-            MaxParticipants = request.MaxParticipants
-        };
 
-        var createdEvent = await _eventService.CreateEventAsync(newEvent);
-        
-        var response = MapToResponse(createdEvent);
-            
-        return Ok(response);
+    [HttpPost]
+    public async Task<IActionResult> CreateEvent([FromBody] EventRequest request)
+    {
+        var createdEvent = await _eventService.CreateEventAsync(request);
+        return Ok(createdEvent);
     }
 
-    private static Event MapToResponse(Event nEvent)
+    [HttpGet("{eventId}")]
+    public async Task<IActionResult> GetEventById(Guid eventId)
     {
-        return new Event
-        {
-            Name = nEvent.Name,
-            Description = nEvent.Description,
-            StartDate = nEvent.StartDate,
-            EndDate = nEvent.EndDate,
-            Location = nEvent.Location,
-            Format = nEvent.Format,
-            EventType = nEvent.EventType,
-            ResponsiblePerson = nEvent.ResponsiblePerson,
-            MaxParticipants = nEvent.MaxParticipants
-        };
+        var _event = await _eventService.GetEventByIdAsync(eventId);
+        return Ok(_event);
     }
 
-    public class NewEventRequest
+    [HttpGet]
+    public async Task<IActionResult> SearchEvents([FromQuery] SearchRequest request)
     {
-        public string Name { get; set; }
+        var events = await _eventService.SearchEventsAsync(request);
+        return Ok(events);
+    }
 
-        public string Description { get; set; }
-
-        public DateTime StartDate { get; set; }
-
-        public DateTime EndDate { get; set; }
-
-        public string Location { get; set; }
-
-        public string Format { get; set; }
-
-        public string EventType { get; set; }
-
-        public string ResponsiblePerson { get; set; }
-
-        public int? MaxParticipants { get; set; }
+    [HttpDelete]
+    public async Task<IActionResult> DeleteEvent(Guid eventId)
+    {
+        await _eventService.DeleteEventAsync(eventId);
+        return Ok("Ивент удалён");
     }
 }

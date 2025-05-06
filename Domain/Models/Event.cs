@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SEM.Domain.Models;
 
@@ -31,11 +32,18 @@ public class Event
     [StringLength(50)]
     public string EventType { get; set; }
 
-    public string ResponsiblePerson { get; set; }
+    public Guid ResponsiblePersonId { get; set; }
+    [JsonIgnore]
+    public User ResponsiblePerson { get; set; }
 
-    public int? MaxParticipants { get; set; }
+    public int MaxParticipants { get; set; }
 
-    public bool IsActive => DateTime.UtcNow < EndDate;
-    
-    public ICollection<EventCategory> EventCategories { get; set; } = new List<EventCategory>();
+    [JsonIgnore]
+    public ICollection<User> Users { get; set; }
+
+    [JsonIgnore]
+    public ICollection<EventCategory> EventCategories { get; set; }
+
+    [JsonPropertyName("categories")]
+    public ICollection<string> CategoryNames => EventCategories.Select(c => c.Category.Name).ToList();
 }
