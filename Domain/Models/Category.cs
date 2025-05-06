@@ -2,8 +2,8 @@
 
 public class Category
 {
-    public Guid id { get; set; }
+    public Guid Id { get; set; }
     public string Name { get; set; }
 
-    public ICollection<EventCategory> EventCategories { get; set; } = new List<EventCategory>();
+    public ICollection<EventCategory> EventCategories { get; set; }
 }

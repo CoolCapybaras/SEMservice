@@ -1,7 +1,4 @@
-﻿using System.Text.Json.Serialization;
-using SEM.Domain.Models;
-
-namespace Domain.DTO;
+﻿namespace Domain.DTO;
 
 public class EventRequest
 {
@@ -10,7 +7,7 @@ public class EventRequest
     public string Description { get; set; }
 
     public DateTime StartDate { get; set; }
-    
+
     public DateTime EndDate { get; set; }
 
     public string Location { get; set; }
@@ -19,9 +16,9 @@ public class EventRequest
 
     public string EventType { get; set; }
 
-    public string ResponsiblePerson { get; set; }
+    public Guid ResponsiblePersonId { get; set; }
 
     public int? MaxParticipants { get; set; }
-    
-    public List<string>  Categories { get; set; }
+
+    public List<string> Categories { get; set; }
 }

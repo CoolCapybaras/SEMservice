@@ -1,14 +1,14 @@
-﻿using SEM.Domain.Models;
+﻿using Domain.DTO;
+using SEM.Domain.Models;
 
 namespace SEM.Domain.Interfaces;
 
 public interface IEventRepository
 {
-    Task<Event> AddEventAsync(Event neEvent);
+    Task<Event> CreateEventAsync(EventRequest request);
     Task<IEnumerable<Event>> GetAllEventsAsync();
-    Task<Event> GetEventByIdAsync(Guid eventId);
-    Task<List<Event>> SearchEvents(DateTime? start, DateTime? end, string name, List<string> categories,
-        List<string> organizators, string format, bool? isFreePlaces, int offset, int count);
+    Task<Event?> GetEventByIdAsync(Guid eventId);
+    Task<List<Event>> SearchEventsAsync(SearchRequest request);
     Task AddCategoryAsync(Category category);
     Task<List<Category>> GetAllCategoriesAsync();
     Task DeleteEventAndUnusedCategoriesAsync(Event eventToDelete);
