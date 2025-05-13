@@ -12,6 +12,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<Category> Categories { get; set; }
 
     public DbSet<EventCategory> EventCategories { get; set; }
+    
+    public DbSet<EventRole> EventRoles { get; set; }
+    
+    public DbSet<Roles> Roles { get; set; }
+    
+    public DbSet<EventPhoto> EventPhotos { get; set; }
 
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
@@ -39,5 +45,23 @@ public class ApplicationDbContext : DbContext
             .HasOne(ec => ec.Category)
             .WithMany(c => c.EventCategories)
             .HasForeignKey(ec => ec.CategoryId);
+        
+        modelBuilder.Entity<EventRole>()
+            .HasKey(ec => new { ec.EventId, ec.UserId, ec.RoleId });
+        
+        modelBuilder.Entity<EventRole>()
+            .HasOne(eur => eur.User)
+            .WithMany(u => u.EventRole)
+            .HasForeignKey(eur => eur.UserId);
+
+        modelBuilder.Entity<EventRole>()
+            .HasOne(eur => eur.Event)
+            .WithMany(e => e.EventRoles)
+            .HasForeignKey(eur => eur.EventId);
+
+        modelBuilder.Entity<EventRole>()
+            .HasOne(eur => eur.Role)
+            .WithMany(r => r.EventRoles)
+            .HasForeignKey(eur => eur.RoleId);
     }
 }

@@ -38,4 +38,64 @@ public class EventService : IEventService
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         await _eventRepository.DeleteEventAndUnusedCategoriesAsync(_event);
     }
+
+    public async Task AddSuscriberAsync(Guid eventId, Guid userId)
+    {
+        await _eventRepository.AddSuscriberAsync(eventId, userId);
+    }
+
+    public async Task DeleteSuscriber(Guid eventId, Guid userId)
+    {
+        await _eventRepository.DeleteSuscriber(eventId, userId);
+    }
+
+    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid roleId, Guid userId)
+    {
+        return await _eventRepository.AddRoleToUser(eventId, roleId, userId);
+    }
+
+    public async Task<List<Guid>> GetRolesByEvent(Guid eventId)
+    {
+        return await _eventRepository.GetRolesByEvent(eventId);
+    }
+
+    public async Task<List<User>> GetAllSuscribersAsync(Guid eventId)
+    {
+        return await _eventRepository.GetAllSuscribersAsync(eventId);
+    }
+
+    public async Task<Event> UpdateEventAsync(Guid eventId, Event updateModel)
+    {
+        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
+        
+        curEvent.Name = updateModel.Name ?? curEvent.Name;
+        curEvent.Description = updateModel.Description ?? curEvent.Description;
+        curEvent.StartDate = updateModel.StartDate ?? curEvent.StartDate;
+        curEvent.EndDate = updateModel.EndDate ?? curEvent.EndDate;
+        curEvent.Location = updateModel.Location ?? curEvent.Location;
+        curEvent.Format = updateModel.Format ?? curEvent.Format;
+        curEvent.EventType = updateModel.EventType ?? curEvent.EventType;
+        curEvent.MaxParticipants = updateModel.MaxParticipants ?? curEvent.MaxParticipants;
+
+        var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
+
+        return updatedEvent;
+    }
+
+    public async Task<List<string>> GetEventPhotosAsync(Guid eventId)
+    {
+        return await _eventRepository.GetEventPhotosAsync(eventId);
+    }
+    
+    public async Task AddEventPhotoAsync(Guid eventId, string filePath)
+    {
+        var photo = new EventPhoto
+        {
+            Id = Guid.NewGuid(),
+            EventId = eventId,
+            FilePath = filePath
+        };
+
+        await _eventRepository.AddEventPhotoAsync(photo);
+    }
 }

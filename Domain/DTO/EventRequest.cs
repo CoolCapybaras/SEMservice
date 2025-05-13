@@ -21,4 +21,6 @@ public class EventRequest
     public int? MaxParticipants { get; set; }
 
     public List<string> Categories { get; set; }
+    
+    public List<string> Roles { get; set; }
 }

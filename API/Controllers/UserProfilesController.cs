@@ -1,6 +1,9 @@
+using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SEM.Domain.Models;
 using SEM.Domain.Interfaces;
 
@@ -50,7 +53,7 @@ public class ProfileController : ControllerBase
     }
     
     [HttpPut]
-    public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateUserProfile(IFormFile? file,[FromForm] UpdateProfileRequest request)
     {
         try
         {
@@ -67,6 +70,24 @@ public class ProfileController : ControllerBase
                 EducationalInstitution = request.EducationalInstitution,
                 CourseNumber = request.CourseNumber
             };
+            
+            if (file != null && file.Length > 0)
+            {
+                var uploadsFolder = Path.Combine("wwwroot", "avatars");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                await using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var avatarUrl = $"/avatars/{fileName}";
+                updateModel.AvatarUrl = avatarUrl;
+            }
             
             var updatedProfile = await _profileService.UpdateProfileAsync(userId, updateModel);
             
@@ -105,7 +126,8 @@ public class ProfileController : ControllerBase
             Telegram = model.Telegram,
             City = model.City,
             EducationalInstitution = model.EducationalInstitution,
-            CourseNumber = model.CourseNumber
+            CourseNumber = model.CourseNumber,
+            AvatarUrl = model.AvatarUrl
         };
     }
     
@@ -120,6 +142,8 @@ public class ProfileController : ControllerBase
         public string? City { get; set; }
         public string? EducationalInstitution { get; set; }
         public int? CourseNumber { get; set; }
+        
+        public string? AvatarUrl { get; set; }
     } 
     
     public class UpdateProfileRequest

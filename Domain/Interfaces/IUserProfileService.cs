@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using SEM.Domain.Models;
 
 namespace SEM.Domain.Interfaces;

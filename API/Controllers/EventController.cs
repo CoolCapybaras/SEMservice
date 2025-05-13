@@ -1,6 +1,10 @@
-﻿using Domain.DTO;
+﻿using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Domain.DTO;
 using Microsoft.AspNetCore.Mvc;
 using SEM.Domain.Interfaces;
+using SEM.Domain.Models;
 
 namespace SEM.API.Controllers;
 
@@ -42,4 +46,146 @@ public class EventController : ControllerBase
         await _eventService.DeleteEventAsync(eventId);
         return Ok("Ивент удалён");
     }
+
+    [HttpPost("{eventId}")]
+    public async Task<IActionResult> AddSuscriberAsync(Guid eventId)
+    {
+        var userId = GetUserIdFromToken();
+        await _eventService.AddSuscriberAsync(eventId, userId);
+        return Ok("Пользователь пойдёт");
+    }
+
+    [HttpDelete("{eventId}")]
+    public async Task<IActionResult> DeleteSuscriber(Guid eventId)
+    {
+        var userId = GetUserIdFromToken();
+        await _eventService.DeleteSuscriber(eventId, userId);
+        return Ok("Пользователь передумал");
+    }
+
+    [HttpPost("{eventId}/{userId}")]
+    public async Task<IActionResult> AddRoleToUser(Guid eventId, Guid roleId, Guid userId)
+    {
+        var сurentUserId = GetUserIdFromToken();
+        var @event = await _eventService.GetEventByIdAsync(eventId);
+        if (сurentUserId == @event.ResponsiblePersonId)
+        {
+            await _eventService.AddRoleToUser(eventId, roleId, userId);
+            return Ok("Роль задана");
+        }
+        else
+        {
+            return Unauthorized("Вы не являетесь создателем мероприятия");
+        }
+    }
+
+    [HttpGet("roles/{eventId}")]
+    public async Task<IActionResult> GetRolesByEvent(Guid eventId)
+    {
+        var result = await _eventService.GetRolesByEvent(eventId);
+        return Ok(new { res = result });
+    }
+
+    [HttpGet("subscribers")]
+    public async Task<IActionResult> GetAllSuscribersAsync(Guid eventId)
+    {
+        var result = await _eventService.GetAllSuscribersAsync(eventId);
+        return Ok(new { res = result });
+    }
+    
+    [HttpPut]
+    public async Task<IActionResult> UpdateEvent(Guid eventId, [FromBody] EventUpdateRequest request)
+    {
+        var userId = GetUserIdFromToken();
+        var @event = await _eventService.GetEventByIdAsync(eventId);
+        if (userId == @event.ResponsiblePersonId)
+        {
+            var updateModel = new Event
+            {
+                Name = request.Name,
+                Description = request.Description,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                Location = request.Location,
+                Format = request.Format,
+                EventType = request.EventType,
+                MaxParticipants = request.MaxParticipants
+            };
+
+            var updatedEvent = await _eventService.UpdateEventAsync(eventId, updateModel);
+
+            return Ok(updatedEvent);
+        }
+        else
+        {
+            return Unauthorized("Вы не являетесь создателем мероприятия");
+        }
+    }
+    
+    [HttpGet("{eventId}/photos")]
+    public async Task<IActionResult> GetEventPhotos(Guid eventId)
+    {
+        var photos = await _eventService.GetEventPhotosAsync(eventId);
+        return Ok(photos);
+    }
+    
+    [HttpPost("{eventId}/photos")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadEventPhoto(Guid eventId, IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("Файл не загружен.");
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        if (!Directory.Exists(uploadsFolder))
+            Directory.CreateDirectory(uploadsFolder);
+
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var relativePath = Path.Combine("uploads", fileName).Replace("\\", "/");
+        await _eventService.AddEventPhotoAsync(eventId, "/" + relativePath);
+
+        return Ok(new { path = "/" + relativePath });
+    }
+    
+    
+    
+    private Guid GetUserIdFromToken()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new Exception("Некорректный идентификатор пользователя в токене");
+        }
+        
+        return userId;
+    }
+
+    public class EventUpdateRequest
+    {
+
+        public string Name { get; set; }
+
+        public string Description { get; set; }
+
+        public DateTime? StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+
+        public string Location { get; set; }
+
+        public string Format { get; set; }
+
+        public string EventType { get; set; }
+
+        public int? MaxParticipants { get; set; }
+    }
+
 }

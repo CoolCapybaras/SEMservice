@@ -32,4 +32,8 @@ public class User
     public int? CourseNumber { get; set; }
 
     public string? ResetToken { get; set; }
+    
+    public string? AvatarUrl { get; set; }
+    
+    public ICollection<EventRole> EventRole { get; set; }
 } 

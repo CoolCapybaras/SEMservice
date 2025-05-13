@@ -1,4 +1,5 @@
-﻿using Domain.DTO;
+﻿using System.Security.Claims;
+using Domain.DTO;
 using Microsoft.EntityFrameworkCore;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
@@ -25,6 +26,8 @@ public class EventRepository : IEventRepository
             .Select(name => new Category { Name = name })
             .ToList();
 
+        
+        
         var newEvent = new Event
         {
             Name = request.Name,
@@ -35,11 +38,41 @@ public class EventRepository : IEventRepository
             Format = request.Format,
             EventType = request.EventType,
             ResponsiblePersonId = request.ResponsiblePersonId,
-            MaxParticipants = request.MaxParticipants ?? -1
+            MaxParticipants = request.MaxParticipants ?? -1,
+            RolesNames = request.Roles
         };
+        
 
         _context.Categories.AddRange(newCategories);
         _context.Events.Add(newEvent);
+        await _context.SaveChangesAsync();
+        
+        var newRoles = new List<Roles>();
+        foreach (var role in request.Roles)
+        {
+            var newRole = new Roles
+            {
+                Name = role,
+                EventId = newEvent.Id
+            };
+            newRoles.Add(newRole);
+        }
+
+        var organizatorRole = new Roles
+        {
+            Name = "Организатор",
+            EventId = newEvent.Id
+        };
+        newRoles.Add(organizatorRole);
+        var participantRole = new Roles
+        {
+            Name = "Участник",
+            EventId = newEvent.Id
+        };
+        newRoles.Add(participantRole);
+        
+
+        _context.Roles.AddRange(newRoles);
         await _context.SaveChangesAsync();
 
         var eventCategories = existingCategories.Concat(newCategories)
@@ -50,6 +83,17 @@ public class EventRepository : IEventRepository
             })
             .ToList();
 
+        var organizatorEventRole = await _context.Roles
+            .FirstOrDefaultAsync(r => r.Name == "Организатор");
+
+        var eventOrganiztor = new EventRole
+        {
+            EventId = newEvent.Id,
+            UserId = newEvent.ResponsiblePersonId,
+            RoleId = organizatorEventRole.Id,
+        };
+
+        await _context.EventRoles.AddAsync(eventOrganiztor);
         _context.EventCategories.AddRange(eventCategories);
         await _context.SaveChangesAsync();
 
@@ -66,6 +110,7 @@ public class EventRepository : IEventRepository
         return await _context.Events
             .Include(e => e.EventCategories)
             .ThenInclude(ec => ec.Category)
+            .Include(e => e.Photos)
             .FirstOrDefaultAsync(e => e.Id == eventId);
     }
 
@@ -136,10 +181,15 @@ public class EventRepository : IEventRepository
         var eventCategories = await _context.EventCategories
             .Where(ec => ec.EventId == eventToDelete.Id)
             .ToListAsync();
+        var eventRoles = await _context.EventRoles
+            .Where(r => r.EventId == eventToDelete.Id)
+            .ToListAsync();
 
+        var roleIds = eventRoles.Select(r => r.RoleId).ToList();
         var categoryIds = eventCategories.Select(ec => ec.CategoryId).ToList();
 
         _context.EventCategories.RemoveRange(eventCategories);
+        _context.EventRoles.RemoveRange(eventRoles);
         _context.Events.Remove(eventToDelete);
         await _context.SaveChangesAsync();
 
@@ -147,7 +197,11 @@ public class EventRepository : IEventRepository
             .Where(c => categoryIds.Contains(c.Id))
             .Where(c => !_context.EventCategories.Any(ec => ec.CategoryId == c.Id))
             .ToListAsync();
+        var unusedRoles = await _context.Roles
+            .Where(r => r.EventId == eventToDelete.Id)
+            .ToListAsync();
 
+        _context.Roles.RemoveRange(unusedRoles);
         _context.Categories.RemoveRange(unusedCategories);
         await _context.SaveChangesAsync();
     }
@@ -161,6 +215,95 @@ public class EventRepository : IEventRepository
         };
 
         await _context.EventCategories.AddAsync(eventCategory);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AddSuscriberAsync(Guid eventId, Guid userId)
+    {
+        var participantEventRole = await _context.Roles
+            .FirstOrDefaultAsync(r => r.Name == "Участник" && r.EventId == eventId);
+
+        var newSuscriber = new EventRole
+        {
+            EventId = eventId,
+            UserId = userId,
+            RoleId = participantEventRole.Id,
+        };
+
+        await _context.EventRoles.AddAsync(newSuscriber);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteSuscriber(Guid eventId, Guid userId)
+    {
+        var participantToDelete = await _context.EventRoles
+            .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId);
+
+        _context.EventRoles.Remove(participantToDelete);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid roleId, Guid userId)
+    {
+        var oldData = await _context.EventRoles.FirstOrDefaultAsync(er => er.EventId == eventId && er.UserId == userId);
+        _context.EventRoles.Remove(oldData);
+        await _context.SaveChangesAsync();
+        var newUserInRole = new EventRole
+        {
+            EventId = eventId,
+            UserId = userId,
+            RoleId = roleId,
+        };
+        await _context.EventRoles.AddAsync(newUserInRole);
+        await _context.SaveChangesAsync();
+        return newUserInRole;
+    }
+
+    public async Task<List<Guid>> GetRolesByEvent(Guid eventId)
+    {
+        var res = new List<Guid>();
+        var roleInEvent = await _context.Roles.Where(r => r.EventId == eventId).ToListAsync();
+        foreach (var role in roleInEvent)
+        {
+            res.Add(role.Id);
+        }
+        return res;
+    }
+
+    public async Task<List<User>> GetAllSuscribersAsync(Guid eventId)
+    {
+        var userIds = await _context.EventRoles
+            .Where(r => r.EventId == eventId)
+            .Select(r => r.UserId)
+            .Distinct()
+            .ToListAsync();
+        
+        var users = await _context.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToListAsync();
+
+        return users;
+    }
+
+    public async Task<Event> UpdateEventAsync(Event @event)
+    {
+        _context.Events.Update(@event);
+        await _context.SaveChangesAsync();
+        
+        return @event;
+    }
+
+    public async Task<List<string>> GetEventPhotosAsync(Guid eventId)
+    {
+        return await _context.EventPhotos
+            .Where(p => p.EventId == eventId)
+            .Select(p => p.FilePath)
+            .ToListAsync();
+    }
+
+    public async Task AddEventPhotoAsync(EventPhoto photo)
+    {
+        _context.EventPhotos.Add(photo);
         await _context.SaveChangesAsync();
     }
 }

@@ -1,4 +1,5 @@
 
+using Microsoft.AspNetCore.Http;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
 
@@ -42,6 +43,7 @@ public class UserProfileService : IUserProfileService
         profile.City = updateModel.City ?? profile.City;
         profile.EducationalInstitution = updateModel.EducationalInstitution ?? profile.EducationalInstitution;
         profile.CourseNumber = updateModel.CourseNumber ?? profile.CourseNumber;
+        profile.AvatarUrl = updateModel.AvatarUrl ?? profile.AvatarUrl;
         
         // Сохраняем изменения
         var updatedProfile = await _profileRepository.UpdateProfileAsync(profile);
@@ -65,7 +67,7 @@ public class UserProfileService : IUserProfileService
         
         return MapToModel(newProfile);
     }
-    
+
     // Преобразование из модели данных в модель бизнес-логики
     private static User MapToModel(User profile)
     {
@@ -79,7 +81,8 @@ public class UserProfileService : IUserProfileService
             Telegram = profile.Telegram,
             City = profile.City,
             EducationalInstitution = profile.EducationalInstitution,
-            CourseNumber = profile.CourseNumber
+            CourseNumber = profile.CourseNumber,
+            AvatarUrl = profile.AvatarUrl
         };
     }
 } 
