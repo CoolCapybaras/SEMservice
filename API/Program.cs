@@ -7,6 +7,7 @@ using SEM.Services;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -78,18 +79,23 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyHeader()
+        policy.AllowAnyOrigin()
             .AllowAnyMethod()
-            .AllowAnyOrigin();
+            .AllowAnyHeader();
     });
 });
 
 // Настраиваем приложение
 var app = builder.Build();
 
-app.UseCors();
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+app.UseCors("AllowAll");
 
 //if (app.Environment.IsDevelopment())
 //{
@@ -104,6 +110,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.UseDefaultFiles();
 app.UseStaticFiles();
 
 
