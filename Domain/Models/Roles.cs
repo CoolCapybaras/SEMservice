@@ -12,6 +12,7 @@ public class Roles
     
     public Guid EventId { get; set; }
     [NotMapped]
+    [JsonIgnore]
     public ICollection<Event> Events { get; set; }
 
     [JsonIgnore]

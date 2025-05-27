@@ -8,6 +8,8 @@ using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
+using SEM.Infrastructure.Data;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -89,6 +91,12 @@ builder.Services.AddCors(options =>
 
 // Настраиваем приложение
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {

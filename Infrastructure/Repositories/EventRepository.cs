@@ -91,6 +91,7 @@ public class EventRepository : IEventRepository
             EventId = newEvent.Id,
             UserId = newEvent.ResponsiblePersonId,
             RoleId = organizatorEventRole.Id,
+            IsContact = true
         };
 
         await _context.EventRoles.AddAsync(eventOrganiztor);
@@ -243,29 +244,43 @@ public class EventRepository : IEventRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid roleId, Guid userId)
+    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid userId,string roleName)
     {
-        var oldData = await _context.EventRoles.FirstOrDefaultAsync(er => er.EventId == eventId && er.UserId == userId);
-        _context.EventRoles.Remove(oldData);
-        await _context.SaveChangesAsync();
+        var roleEntity = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+        
+        var oldData = await _context.EventRoles.FirstOrDefaultAsync(er =>
+            er.EventId == eventId && er.UserId == userId);
+
+        if (oldData != null)
+        {
+            _context.EventRoles.Remove(oldData);
+            await _context.SaveChangesAsync();
+        }
+
         var newUserInRole = new EventRole
         {
             EventId = eventId,
             UserId = userId,
-            RoleId = roleId,
+            RoleId = roleEntity.Id
         };
+
         await _context.EventRoles.AddAsync(newUserInRole);
         await _context.SaveChangesAsync();
+
         return newUserInRole;
     }
 
-    public async Task<List<Guid>> GetRolesByEvent(Guid eventId)
+    public async Task<List<RolesResponse>> GetRolesByEvent(Guid eventId)
     {
-        var res = new List<Guid>();
+        var res = new List<RolesResponse>();
         var roleInEvent = await _context.Roles.Where(r => r.EventId == eventId).ToListAsync();
         foreach (var role in roleInEvent)
         {
-            res.Add(role.Id);
+            var roleName = new RolesResponse
+            {
+                Name = role.Name
+            };
+            res.Add(roleName);
         }
         return res;
     }
@@ -305,5 +320,49 @@ public class EventRepository : IEventRepository
     {
         _context.EventPhotos.Add(photo);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task AddContact(Guid eventId, Guid userId)
+    {
+        var user = await _context.EventRoles
+            .FirstOrDefaultAsync(er => er.EventId == eventId && er.UserId == userId);
+        
+        user.IsContact = true;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<ContactResponse>> GetContacts(Guid eventId)
+    {
+        var eventRoles = await _context.EventRoles
+            .Where(u => u.EventId == eventId && u.IsContact == true)
+            .Include(u => u.User)
+            .Include(u => u.Role)
+            .ToListAsync();
+        var contacts = new List<ContactResponse>();
+        foreach (var userEventRole in eventRoles)
+        {
+            var user = new ContactResponse
+            {
+                Name = $"{userEventRole.User.LastName} {userEventRole.User.FirstName} {userEventRole.User.LastName}",
+                Role = userEventRole.Role.Name,
+                PhotoUrl = userEventRole.User.AvatarUrl
+            };
+            contacts.Add(user);
+        }
+
+        return contacts;
+    }
+
+    public async Task<Roles> GetRoleByName(string roleName)
+    {
+        return await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+    }
+    
+    public async Task<List<User>> Get10UsersByName(string userName)
+    {
+        return await _context.Users
+            .Where(u => EF.Functions.ILike($"{u.LastName} {u.FirstName} {u.MiddleName}", $"%{userName}%"))
+            .Take(10)
+            .ToListAsync();
     }
 }

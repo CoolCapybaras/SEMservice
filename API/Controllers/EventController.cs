@@ -23,28 +23,28 @@ public class EventController : ControllerBase
     public async Task<IActionResult> CreateEvent([FromBody] EventRequest request)
     {
         var createdEvent = await _eventService.CreateEventAsync(request);
-        return Ok(createdEvent);
+        return Ok(new {result = createdEvent});
     }
 
     [HttpGet("{eventId}")]
     public async Task<IActionResult> GetEventById(Guid eventId)
     {
         var _event = await _eventService.GetEventByIdAsync(eventId);
-        return Ok(_event);
+        return Ok(new {result=_event});
     }
 
     [HttpGet]
     public async Task<IActionResult> SearchEvents([FromQuery] SearchRequest request)
     {
         var events = await _eventService.SearchEventsAsync(request);
-        return Ok(events);
+        return Ok(new {result=events});
     }
 
     [HttpDelete]
     public async Task<IActionResult> DeleteEvent(Guid eventId)
     {
         await _eventService.DeleteEventAsync(eventId);
-        return Ok("Ивент удалён");
+        return Ok(new {reuslt = eventId});
     }
 
     [HttpPost("{eventId}")]
@@ -52,7 +52,7 @@ public class EventController : ControllerBase
     {
         var userId = GetUserIdFromToken();
         await _eventService.AddSuscriberAsync(eventId, userId);
-        return Ok("Пользователь пойдёт");
+        return Ok(new{result = eventId, userId});
     }
 
     [HttpDelete("{eventId}")]
@@ -60,18 +60,21 @@ public class EventController : ControllerBase
     {
         var userId = GetUserIdFromToken();
         await _eventService.DeleteSuscriber(eventId, userId);
-        return Ok("Пользователь передумал");
+        return Ok(new {result = eventId, userId});
     }
 
     [HttpPost("{eventId}/{userId}")]
-    public async Task<IActionResult> AddRoleToUser(Guid eventId, Guid roleId, Guid userId)
+    public async Task<IActionResult> AddRoleToUser(Guid eventId, Guid userId,string roleName)
     {
         var сurentUserId = GetUserIdFromToken();
         var @event = await _eventService.GetEventByIdAsync(eventId);
+        var role = await _eventService.GetRoleByName(roleName);
+        if (role == null)
+            return BadRequest("Роль не найдена");
         if (сurentUserId == @event.ResponsiblePersonId)
         {
-            await _eventService.AddRoleToUser(eventId, roleId, userId);
-            return Ok("Роль задана");
+            await _eventService.AddRoleToUser(eventId,  userId, roleName);
+            return Ok(new {result = eventId, roleName, userId});
         }
         else
         {
@@ -114,7 +117,7 @@ public class EventController : ControllerBase
 
             var updatedEvent = await _eventService.UpdateEventAsync(eventId, updateModel);
 
-            return Ok(updatedEvent);
+            return Ok(new {result = updatedEvent});
         }
         else
         {
@@ -126,7 +129,7 @@ public class EventController : ControllerBase
     public async Task<IActionResult> GetEventPhotos(Guid eventId)
     {
         var photos = await _eventService.GetEventPhotosAsync(eventId);
-        return Ok(photos);
+        return Ok(new {result = photos});
     }
     
     [HttpPost("{eventId}/photos")]
@@ -152,6 +155,46 @@ public class EventController : ControllerBase
         await _eventService.AddEventPhotoAsync(eventId, "/" + relativePath);
 
         return Ok(new { path = "/" + relativePath });
+    }
+
+    [HttpPost("contact")]
+    public async Task<IActionResult> AddContact(Guid eventId, Guid userId)
+    {
+        await _eventService.AddContact(eventId, userId);
+        return Ok(new {result = eventId, userId});
+    }
+
+    [HttpGet("{eventId}/contacts")]
+    public async Task<IActionResult> GetContacts(Guid eventId)
+    {
+        var contacts = await _eventService.GetContacts(eventId);
+
+        return Ok(new {result = contacts});
+        
+    }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> Get10Users(string userName)
+    {
+        var users = await _eventService.Get10UsersByName(userName);
+
+        var res = new List<UserResponse>();
+
+        foreach (var user in users)
+        {
+            var userResp = new UserResponse
+            {
+                Id = user.Id,
+                LastName = user.LastName,
+                FirstName = user.FirstName,
+                MiddleName = user.MiddleName,
+                AvatarUrl = user.AvatarUrl
+            };
+            
+            res.Add(userResp);
+        }
+
+        return Ok(new { result = res });
     }
     
     

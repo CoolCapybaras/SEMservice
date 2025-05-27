@@ -18,11 +18,17 @@ public class ApplicationDbContext : DbContext
     public DbSet<Roles> Roles { get; set; }
     
     public DbSet<EventPhoto> EventPhotos { get; set; }
+    
+    public DbSet<Notification> Notifications { get; set; }
+    
+    public DbSet<EventPost> EventPosts { get; set; }
+
+    public DbSet<Invites> Invites { get; set; }
 
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
-        Database.EnsureCreated();
+        
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

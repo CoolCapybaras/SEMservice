@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using SEM.Domain.Interfaces;
@@ -18,6 +19,9 @@ public static class InfrastructureStartUp
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<IEventPostRepository, EventPostRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IInviteRepository, InviteRepository>();
 
         return services;
     }

@@ -49,12 +49,12 @@ public class EventService : IEventService
         await _eventRepository.DeleteSuscriber(eventId, userId);
     }
 
-    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid roleId, Guid userId)
+    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid userId,string roleName)
     {
-        return await _eventRepository.AddRoleToUser(eventId, roleId, userId);
+        return await _eventRepository.AddRoleToUser(eventId, userId, roleName);
     }
 
-    public async Task<List<Guid>> GetRolesByEvent(Guid eventId)
+    public async Task<List<RolesResponse>> GetRolesByEvent(Guid eventId)
     {
         return await _eventRepository.GetRolesByEvent(eventId);
     }
@@ -97,5 +97,25 @@ public class EventService : IEventService
         };
 
         await _eventRepository.AddEventPhotoAsync(photo);
+    }
+
+    public async Task AddContact(Guid eventId, Guid userId)
+    {
+        await _eventRepository.AddContact(eventId, userId);
+    }
+
+    public async Task<List<ContactResponse>> GetContacts(Guid eventId)
+    {
+        return await _eventRepository.GetContacts(eventId);
+    }
+
+    public async Task<Roles> GetRoleByName(string roleName)
+    {
+        return await _eventRepository.GetRoleByName(roleName);
+    }
+
+    public async Task<List<User>> Get10UsersByName(string userName)
+    {
+        return await _eventRepository.Get10UsersByName(userName);
     }
 }

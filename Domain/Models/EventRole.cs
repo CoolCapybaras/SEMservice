@@ -1,4 +1,6 @@
-﻿namespace SEM.Domain.Models;
+﻿using Microsoft.EntityFrameworkCore.Metadata;
+
+namespace SEM.Domain.Models;
 
 public class EventRole
 {
@@ -11,4 +13,6 @@ public class EventRole
 
     public Guid RoleId { get; set; }
     public Roles Role { get; set; }
+
+    public bool IsContact { get; set; } = false;
 }

@@ -19,6 +19,6 @@ public class CategoryController : ControllerBase
     public async Task<IActionResult> GetAllCategories()
     {
         var categories = await _eventService.GetAllCategoriesAsync();
-        return Ok(categories);
+        return Ok( new { result = categories});
     }
 }
