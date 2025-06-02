@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SEM.Domain.Models;
 
@@ -35,5 +36,6 @@ public class User
     
     public string? AvatarUrl { get; set; }
     
+    [JsonIgnore]
     public ICollection<EventRole> EventRole { get; set; }
 } 

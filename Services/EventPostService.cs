@@ -39,7 +39,7 @@ public class EventPostService : IEventPostService
             var notification = new Notification
             {
                 Id = Guid.NewGuid(),
-                UserId = user.Id,
+                UserId = user.id,
                 Type = "Post",
                 Payload = JsonSerializer.Serialize(payload),
                 IsRead = false,

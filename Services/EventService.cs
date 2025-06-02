@@ -59,7 +59,7 @@ public class EventService : IEventService
         return await _eventRepository.GetRolesByEvent(eventId);
     }
 
-    public async Task<List<User>> GetAllSuscribersAsync(Guid eventId)
+    public async Task<List<EventUserResponse>> GetAllSuscribersAsync(Guid eventId)
     {
         return await _eventRepository.GetAllSuscribersAsync(eventId);
     }

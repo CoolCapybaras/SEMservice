@@ -75,6 +75,7 @@ public class EventRepository : IEventRepository
         _context.Roles.AddRange(newRoles);
         await _context.SaveChangesAsync();
 
+        
         var eventCategories = existingCategories.Concat(newCategories)
             .Select(c => new EventCategory
             {
@@ -83,8 +84,9 @@ public class EventRepository : IEventRepository
             })
             .ToList();
 
+        Event newEventId = await _context.Events.FirstOrDefaultAsync(r => r == newEvent);
         var organizatorEventRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.Name == "Организатор");
+            .FirstOrDefaultAsync(r => r.Name == "Организатор" && r.EventId == newEventId.Id);
 
         var eventOrganiztor = new EventRole
         {
@@ -246,7 +248,7 @@ public class EventRepository : IEventRepository
 
     public async Task<EventRole> AddRoleToUser(Guid eventId, Guid userId,string roleName)
     {
-        var roleEntity = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+        var roleEntity = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName && r.EventId == eventId);
         
         var oldData = await _context.EventRoles.FirstOrDefaultAsync(er =>
             er.EventId == eventId && er.UserId == userId);
@@ -285,19 +287,28 @@ public class EventRepository : IEventRepository
         return res;
     }
 
-    public async Task<List<User>> GetAllSuscribersAsync(Guid eventId)
+    public async Task<List<EventUserResponse>> GetAllSuscribersAsync(Guid eventId)
     {
-        var userIds = await _context.EventRoles
-            .Where(r => r.EventId == eventId)
-            .Select(r => r.UserId)
-            .Distinct()
-            .ToListAsync();
-        
-        var users = await _context.Users
-            .Where(u => userIds.Contains(u.Id))
-            .ToListAsync();
-
-        return users;
+        List<EventRole> userIds = await _context.EventRoles.Where(r => r.EventId == eventId).Distinct().ToListAsync();
+        List<EventUserResponse> usersRoles = new List<EventUserResponse>();
+        foreach (EventRole userId in userIds)
+        {
+            User user = await _context.Users.FirstOrDefaultAsync(u => userId.UserId == u.Id);
+            Roles role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == userId.RoleId);
+            EventUserResponse eventUser = new EventUserResponse
+            {
+                id = user.Id,
+                Email = user.Email,
+                Name = $"{user.LastName} {user.FirstName} {user.MiddleName}",
+                PhoneNumber = user.PhoneNumber,
+                Telegram = user.Telegram,
+                City = user.City,
+                AvatarUrl = user.AvatarUrl,
+                Role = role.Name
+            };
+            usersRoles.Add(eventUser);
+        }
+        return usersRoles;
     }
 
     public async Task<Event> UpdateEventAsync(Event @event)
@@ -345,12 +356,13 @@ public class EventRepository : IEventRepository
             {
                 Name = $"{userEventRole.User.LastName} {userEventRole.User.FirstName} {userEventRole.User.LastName}",
                 Role = userEventRole.Role.Name,
-                PhotoUrl = userEventRole.User.AvatarUrl
+                AvatarUrl = userEventRole.User.AvatarUrl
             };
             contacts.Add(user);
         }
 
         return contacts;
+        
     }
 
     public async Task<Roles> GetRoleByName(string roleName)
@@ -361,7 +373,9 @@ public class EventRepository : IEventRepository
     public async Task<List<User>> Get10UsersByName(string userName)
     {
         return await _context.Users
-            .Where(u => EF.Functions.ILike($"{u.LastName} {u.FirstName} {u.MiddleName}", $"%{userName}%"))
+            .Where(u => EF.Functions.ILike(
+                u.LastName + " " + u.FirstName + " " + u.MiddleName,
+                $"%{userName}%"))
             .Take(10)
             .ToListAsync();
     }

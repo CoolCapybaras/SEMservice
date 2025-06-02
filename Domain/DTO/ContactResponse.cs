@@ -6,5 +6,5 @@ public class ContactResponse
     
     public string Role { get; set; }
     
-    public string PhotoUrl { get; set; }
+    public string AvatarUrl { get; set; }
 }

@@ -14,7 +14,7 @@ public interface IEventService
     Task DeleteSuscriber(Guid eventId, Guid userId);
     Task<EventRole> AddRoleToUser(Guid eventId, Guid userId,string roleName);
     Task<List<RolesResponse>> GetRolesByEvent(Guid eventId);
-    public Task<List<User>> GetAllSuscribersAsync(Guid eventId);
+    public Task<List<EventUserResponse>> GetAllSuscribersAsync(Guid eventId);
     Task<Event> UpdateEventAsync(Guid eventId, Event updateModel);
     Task<List<string>> GetEventPhotosAsync(Guid eventId);
     Task AddEventPhotoAsync(Guid eventId, string filePath);
