@@ -119,43 +119,43 @@ public class EventRepository : IEventRepository
     {
         var query = _context.Events.AsQueryable();
 
-        // Фильтр по временному промежутку
-        if (request.Start != null && request.End != null)
-        {
-            query = query.Where(e => e.StartDate >= request.Start && e.EndDate <= request.End);
-        }
+		// Фильтр по временному промежутку
+		if (request.Start != null && request.End != null)
+		{
+			query = query.Where(e => e.EndDate >= request.Start && e.StartDate <= request.End);
+		}
 
-        // Фильтр по имени
-        if (!string.IsNullOrWhiteSpace(request.Name))
-        {
-            query = query.Where(e => EF.Functions.ILike(e.Name, $"{request.Name}%"));
-        }
+		// Фильтр по имени
+		if (!string.IsNullOrWhiteSpace(request.Name))
+		{
+			query = query.Where(e => EF.Functions.ILike(e.Name, $"{request.Name}%"));
+		}
 
-        // Фильтр по организаторам
-        if (request.Organizators != null && request.Organizators.Count > 0)
-        {
-            query = query.Where(e => request.Organizators.Contains(e.ResponsiblePersonId));
-        }
+		// Фильтр по организаторам
+		if (request.Organizators != null && request.Organizators.Count > 0)
+		{
+			query = query.Where(e => request.Organizators.Contains(e.ResponsiblePersonId));
+		}
 
-        // Фильтр по формату
-        if (!string.IsNullOrWhiteSpace(request.Format))
-        {
-            query = query.Where(e => e.Format == request.Format);
-        }
+		// Фильтр по формату
+		if (!string.IsNullOrWhiteSpace(request.Format))
+		{
+			query = query.Where(e => e.Format == request.Format);
+		}
 
-        // Фильтр по свободным местам
-        if (request.HasFreePlaces == true)
-        {
-            query = query.Where(e => e.Users.Count < e.MaxParticipants);
-        }
+		// Фильтр по свободным местам
+		if (request.HasFreePlaces == true)
+		{
+			query = query.Where(e => e.EventRoles.Count() < e.MaxParticipants);
+		}
 
-        // Фильтр по категориям
-        if (request.Categories != null && request.Categories.Count > 0)
-        {
-            query = query.Where(e => e.EventCategories.Any(c => request.Categories.Contains(c.Event.Name)));
-        }
+		// Фильтр по категориям
+		if (request.Categories != null && request.Categories.Count > 0)
+		{
+			query = query.Where(e => e.EventCategories.Any(c => request.Categories.Contains(c.Category.Name)));
+		}
 
-        query = query
+		query = query
             .OrderBy(e => e.StartDate)
             .Skip(request.Offset)
             .Take(request.Count);
