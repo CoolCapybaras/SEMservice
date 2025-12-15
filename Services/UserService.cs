@@ -6,6 +6,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
+using Domain;
+using Domain.DTO;
 using SEM.Domain.Models;
 using SEM.Domain.Interfaces;
 
@@ -14,18 +16,21 @@ namespace SEM.Services;
 public class UserManager : IUserManager
     {
         private readonly IUserRepository _userRepository;
+        private readonly IUserProfileRepository _userProfileRepository;
         private readonly IConfiguration _configuration;
 
-        public UserManager(IUserRepository userRepository, IConfiguration configuration)
+        public UserManager(IUserRepository userRepository, IConfiguration configuration, IUserProfileRepository userProfileRepository)
         {
             _userRepository = userRepository;
             _configuration = configuration;
+            _userProfileRepository = userProfileRepository;
         }
 
-        public async Task<string> RegisterAsync(string email, string password)
+        public async Task<ServiceResult<AuthResponse>> RegisterAsync(string email, string password)
         {
-            if (await _userRepository.GetByEmailAsync(email) != null)
-                return "User already exists";
+            var existingUser = await _userRepository.GetByEmailAsync(email);
+            if (existingUser != null)
+                return ServiceResult<AuthResponse>.Fail("User already exists");
 
             string hashedPassword = HashPassword(password);
 
@@ -36,24 +41,89 @@ public class UserManager : IUserManager
                 FirstName = "User" // Имя по умолчанию
             };
 
+            var auth = await CreateAuthForUserAsync(newUser);
             await _userRepository.AddUserAsync(newUser);
-            return GenerateJwtToken(newUser);
+            return ServiceResult<AuthResponse>.Ok(auth);
         }
 
-        public async Task<string> LoginAsync(string email, string password)
+        public async Task<ServiceResult<AuthResponse>> LoginAsync(string email, string password)
         {
             var user = await _userRepository.GetByEmailAsync(email);
             if (user == null || user.PasswordHash != HashPassword(password))
-                return null;
+                return ServiceResult<AuthResponse>.Fail("Invalid email or password");
 
-            return GenerateJwtToken(user);
+            var auth = await CreateAuthForUserAsync(user);
+            return ServiceResult<AuthResponse>.Ok(auth);
         }
 
-        public async Task<bool> LogoutAsync()
+        public async Task<ServiceResult<bool>> LogoutAsync()
         {
-            // JWT-токены являются статeless, поэтому logout обычно реализуется на клиенте
-            return await Task.FromResult(true);
+            await Task.CompletedTask;
+            return ServiceResult<bool>.Ok(true);
         }
+        
+        public async Task<ServiceResult<AuthResponse>> RefreshAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return ServiceResult<AuthResponse>.Fail("Refresh token is required");
+
+            var hash = ComputeSha256Hash(refreshToken);
+            var dbToken = await _userRepository.GetByHashAsync(hash);
+            if (dbToken == null || !dbToken.IsActive)
+                return ServiceResult<AuthResponse>.Fail("Invalid refresh token");
+
+            // Проверяем существование пользователя
+            var user = await _userProfileRepository.GetByIdAsync(dbToken.UserId);
+            if (user == null)
+            {
+                // на всякий — помечаем токен как отозванный
+                await _userRepository.RevokeAsync(dbToken);
+                return ServiceResult<AuthResponse>.Fail("User not found");
+            }
+
+            // Инвалидируем старый токен
+            await _userRepository.RevokeAsync(dbToken);
+
+            // Создаём новые токены
+            var newPlain = GenerateRefreshToken();
+            var newHash = ComputeSha256Hash(newPlain);
+            var expiresAt = DateTime.UtcNow.AddDays(7);
+
+            var newDbToken = new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = newHash,
+                ExpiresAt = expiresAt,
+            };
+
+            await _userRepository.AddAsync(newDbToken);
+
+            var access = GenerateJwtToken(user);
+
+            var response = new AuthResponse(access, newPlain, expiresAt);
+            return ServiceResult<AuthResponse>.Ok(response);
+        }
+        
+        private async Task<AuthResponse> CreateAuthForUserAsync(User user)
+        {
+            var access = GenerateJwtToken(user);
+
+            var plainRefresh = GenerateRefreshToken();
+            var hash = ComputeSha256Hash(plainRefresh);
+            var expiresAt = DateTime.UtcNow.AddDays(7);
+
+            var dbToken = new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = hash,
+                ExpiresAt = expiresAt,
+            };
+
+            await _userRepository.AddAsync(dbToken);
+
+            return new AuthResponse(access, plainRefresh, expiresAt);
+        }
+
 
         public async Task<bool> RequestPasswordResetAsync(string email)
         {
@@ -98,7 +168,7 @@ public class UserManager : IUserManager
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: now.AddHours(1),
+                expires: now.AddMinutes(15),
                 signingCredentials: credentials
             );
 
@@ -143,5 +213,28 @@ public class UserManager : IUserManager
             var bytes = Encoding.UTF8.GetBytes(password);
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
+        }
+        
+        public static string GenerateRefreshToken(int size = 64)
+        {
+            var data = new byte[size];
+            RandomNumberGenerator.Fill(data);
+            return Base64UrlEncode(data);
+        }
+
+        public static string Base64UrlEncode(byte[] input)
+        {
+            return Convert.ToBase64String(input)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+        }
+
+        public static string ComputeSha256Hash(string input)
+        {
+            using var sha = SHA256.Create();
+            var bytes = Encoding.UTF8.GetBytes(input);
+            var hash = sha.ComputeHash(bytes);
+            return Base64UrlEncode(hash);
         }
     }

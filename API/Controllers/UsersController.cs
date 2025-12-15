@@ -18,35 +18,63 @@ public class UserController : ControllerBase
         _userManager = userManager;
     }
 
+    /// <summary>
+    /// Регистрация пользователя
+    /// </summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var token = await _userManager.RegisterAsync(request.Email, request.Password);
-        if (token == "User already exists")
-            return BadRequest("User already exists");
+        var result = await _userManager.RegisterAsync(request.Email, request.Password);
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
 
-        return Ok(new { Token = token });
+        return Ok(new { result.Data });
     }
 
+    /// <summary>
+    /// Авторизация пользователя
+    /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var token = await _userManager.LoginAsync(request.Email, request.Password);
-        if (token == null)
-            return Unauthorized("Invalid email or password");
+        var result = await _userManager.LoginAsync(request.Email, request.Password);
+        if (!result.Success)
+            return Unauthorized(new { error = result.Error });
 
-        return Ok(new { Token = token });
+        return Ok(new { result.Data });
     }
 
+    /// <summary>
+    /// Обновление Jwt токена через refresh
+    /// </summary>
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
+    {
+        var result = await _userManager.RefreshAsync(request.RefreshToken);
+        if (!result.Success)
+            return Unauthorized(new { error = result.Error });
+
+        return Ok(new { result.Data });
+    }
+    
+    /// <summary>
+    /// Выход пользователя
+    /// </summary>
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout()
     {
         var result = await _userManager.LogoutAsync();
-        return result ? Ok("Logged out successfully") : BadRequest("Logout failed");
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok("Logged out successfully");
     }
 
-    [HttpPost("forgot-password")]
+    /// <summary>
+    /// Восстановление пароля
+    /// </summary>
+    [HttpPost("recover-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         var success = await _userManager.RequestPasswordResetAsync(request.Email);

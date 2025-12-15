@@ -27,15 +27,20 @@ public class User
     public string? Telegram { get; set; }
     
     public string? City { get; set; }
-    
-    public string? EducationalInstitution { get; set; }
-    
-    public int? CourseNumber { get; set; }
 
     public string? ResetToken { get; set; }
     
     public string? AvatarUrl { get; set; }
+
+    public UserPrivilege UserPrivilege { get; set; } = UserPrivilege.COMMON;
     
     [JsonIgnore]
     public ICollection<EventRole> EventRole { get; set; }
 } 
+
+public enum UserPrivilege
+{
+    COMMON,
+    ORGANIZER,
+    ADMIN
+}

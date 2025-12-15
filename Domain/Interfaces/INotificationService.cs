@@ -4,9 +4,9 @@ namespace Domain.Interfaces;
 
 public interface INotificationService
 {
-    Task AddNotificationAsync(Notification notification);
-    Task<List<Notification>> GetNotificationsForUserAsync(Guid userId);
-    Task<int> GetUnreadCountAsync(Guid userId);
-    Task MarkAsReadAsync(Guid notificationId);
-    Task MarkAllAsReadAsync(Guid userId);
+    Task<ServiceResult<bool>> AddNotificationAsync(Notification notification);
+    Task<ServiceResult<Notification>> GetByIdAsync(Guid notificationId);
+    Task<ServiceResult<List<Notification>>> GetNotificationsForUserAsync(Guid userId, int count, int offset);
+    Task<ServiceResult<bool>> MarkAsReadAsync(List<Guid> notificationIds);
+    Task<ServiceResult<bool>> MarkAllAsReadAsync(Guid userId);
 }

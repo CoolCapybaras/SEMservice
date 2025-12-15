@@ -1,4 +1,5 @@
-﻿using Domain.Interfaces;
+﻿using Domain;
+using Domain.Interfaces;
 using SEM.Domain.Models;
 using SEM.Infrastructure.Repositories;
 
@@ -13,28 +14,41 @@ public class NotificationService : INotificationService
         _notificationRepository = notificationRepository;
     }
 
-    public Task AddNotificationAsync(Notification notification)
+    public async Task<ServiceResult<bool>> AddNotificationAsync(Notification notification)
     {
-        return _notificationRepository.AddNotificationAsync(notification);
+        await _notificationRepository.AddNotificationAsync(notification);
+        return ServiceResult<bool>.Ok(true);
     }
 
-    public Task<List<Notification>> GetNotificationsForUserAsync(Guid userId)
+    public async Task<ServiceResult<Notification>> GetByIdAsync(Guid notificationId)
     {
-        return _notificationRepository.GetUserNotificationsAsync(userId);
+        var notification = await _notificationRepository.GetByIdAsync(notificationId);
+        return ServiceResult<Notification>.Ok(notification);
     }
 
-    public Task<int> GetUnreadCountAsync(Guid userId)
+    public async Task<ServiceResult<List<Notification>>> GetNotificationsForUserAsync(Guid userId, int count, int offset)
     {
-        return _notificationRepository.GetUnreadCountAsync(userId);
+        var notifications = await _notificationRepository.GetUserNotificationsAsync(userId, count, offset);
+        var unreadCount = await _notificationRepository.GetUnreadCountAsync(userId);
+
+        var result = ServiceResult<List<Notification>>.Ok(notifications);
+        result.AdditionalData = new Dictionary<string, object>
+        {
+            { "unreadCount", unreadCount }
+        };
+
+        return result;
     }
 
-    public Task MarkAsReadAsync(Guid notificationId)
+    public async Task<ServiceResult<bool>> MarkAsReadAsync(List<Guid> notificationIds)
     {
-        return _notificationRepository.MarkAsReadAsync(notificationId);
+        await _notificationRepository.MarkAsReadAsync(notificationIds);
+        return ServiceResult<bool>.Ok(true);
     }
-    
-    public Task MarkAllAsReadAsync(Guid userId)
+
+    public async Task<ServiceResult<bool>> MarkAllAsReadAsync(Guid userId)
     {
-        return _notificationRepository.MarkAllAsReadAsync(userId);
+        await _notificationRepository.MarkAllAsReadAsync(userId);
+        return ServiceResult<bool>.Ok(true);
     }
 }

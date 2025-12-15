@@ -25,6 +25,12 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Invites> Invites { get; set; }
 
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+    
+    public DbSet<BoardColumn> BoardColumn { get; set; }
+    
+    public DbSet<BoardTask> BoardTasks { get; set; }
+
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

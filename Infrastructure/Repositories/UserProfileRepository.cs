@@ -36,6 +36,33 @@ public class UserProfileRepository : IUserProfileRepository
         
         return userProfile;
     }
+
+    public async Task<String> AddAvatarAsync(Guid userId, string avatarUrl)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(p => p.Id == userId);
+        user.AvatarUrl = avatarUrl;
+        await _dbContext.SaveChangesAsync();
+        
+        return user.AvatarUrl;
+    }
+
+    public async Task<List<Event>> GetSubscribedEventsAsync(Guid userId)
+    {
+        var eventsUser = await _dbContext.EventRoles.Where(e => e.UserId == userId).ToListAsync();
+        var result = new List<Event>();
+        foreach (var eventUser in eventsUser)
+        {
+            var _event = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventUser.EventId);
+            result.Add(_event);
+        }
+        return result;
+    }
+    
+    public async Task<List<User>> GetOrganizers()
+    {
+        var modUsers = await _dbContext.Users.Where(e => e.UserPrivilege == UserPrivilege.ORGANIZER).ToListAsync();
+        return modUsers;
+    }
     
     public async Task<bool> ProfileExistsAsync(Guid userId)
     {

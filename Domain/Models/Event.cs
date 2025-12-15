@@ -45,16 +45,10 @@ public class Event
 
     [JsonIgnore]
     public ICollection<EventCategory> EventCategories { get; set; }
-    
-    [JsonIgnore]
-    [NotMapped]
-    public ICollection<Roles> Roles { get; set; }
 
     [JsonPropertyName("categories")]
-    public ICollection<string> CategoryNames => EventCategories.Select(c => c.Category.Name).ToList();
-    
-    [JsonPropertyName("roles")]
-    public List<string> RolesNames { get; set; }
+    public ICollection<string> CategoryNames => EventCategories?.Select(c => c.Category?.Name ?? string.Empty).ToList() 
+                                                ?? new List<string>();
     
     [JsonIgnore]
     public ICollection<EventRole> EventRoles { get; set; }
@@ -65,4 +59,6 @@ public class Event
     [NotMapped]
     [JsonPropertyName("previewPhotos")]
     public List<string> PreviewPhotos => Photos?.Take(4).Select(p => p.FilePath).ToList() ?? new();
+    
+    public string? status { get; set; } = "ACTIVE";
 }

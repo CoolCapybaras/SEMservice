@@ -22,6 +22,9 @@ public static class InfrastructureStartUp
         services.AddScoped<IEventPostRepository, EventPostRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IInviteRepository, InviteRepository>();
+        services.AddScoped<IAdminRepository, AdminRepository>();
+        services.AddScoped<IBoardColumnRepository, BoardColumnRepository>();
+        services.AddScoped<IBoardTaskRepository, BoardTaskRepository>();
 
         return services;
     }

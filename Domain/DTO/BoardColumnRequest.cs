@@ -1,6 +1,6 @@
 ﻿namespace Domain.DTO;
 
-public class RolesResponse
+public class BoardColumnRequest
 {
     public string Name { get; set; }
 }

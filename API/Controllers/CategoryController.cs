@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SEM.Domain.Interfaces;
 
@@ -15,10 +16,14 @@ public class CategoryController : ControllerBase
         _eventService = eventService;
     }
 
+    /// <summary>
+    /// Получить все возможные категории
+    /// </summary>
     [HttpGet]
+    [Authorize]
     public async Task<IActionResult> GetAllCategories()
     {
-        var categories = await _eventService.GetAllCategoriesAsync();
-        return Ok( new { result = categories});
+        var result = await _eventService.GetAllCategoriesAsync();
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
 }

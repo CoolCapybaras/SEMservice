@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
@@ -7,7 +8,7 @@ using SEM.Domain.Models;
 namespace SEM.API.Controllers;
 
 [ApiController]
-[Route("api/events/posts")]
+[Route("api/events")]
 public class EventPostController : ControllerBase
 {
     private readonly IEventPostService _eventPostService;
@@ -19,82 +20,80 @@ public class EventPostController : ControllerBase
         _eventService = eventService;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetPosts(Guid eventId)
+    /// <summary>
+    /// Получить все посты на мероприятии
+    /// </summary>
+    [HttpGet("{eventId}/posts")]
+    [Authorize]
+    public async Task<IActionResult> GetPosts(Guid eventId, int count, int offset)
     {
-        var posts = await _eventPostService.GetPostsByEventIdAsync(eventId);
-        return Ok(new {result = posts});
+        var result = await _eventPostService.GetPostsByEventIdAsync(eventId, count, offset);
+        if (!result.Success)
+            return NotFound(new { error = result.Error });
+        
+        return Ok(new { result = result.Data });
     }
 
-    [HttpGet("{postId}")]
-    public async Task<IActionResult> GetPost(Guid postId)
+    /// <summary>
+    /// Получить пост мероприятия по ID
+    /// </summary>
+    [HttpGet("{eventId}/posts/{postId}")]
+    [Authorize]
+    public async Task<IActionResult> GetPost(Guid eventId, Guid postId)
     {
-        var post = await _eventPostService.GetPostByIdAsync(postId);
-        if (post == null)
-            return NotFound();
+        var result = await _eventPostService.GetPostByIdAsync(eventId, postId);
+        if (!result.Success)
+            return NotFound(new { error = result.Error });
 
-        return Ok(new {result = post});
+        return Ok(new { result = result.Data });
     }
 
-    [HttpPost]
+    /// <summary>
+    /// Создать пост на странице мероприятия
+    /// </summary>
+    [HttpPost("{eventId}/posts")]
+    [Authorize]
     public async Task<IActionResult> CreatePost(Guid eventId, string text)
     {
         var authorId = GetUserIdFromToken();
-        
-        var @event = await _eventService.GetEventByIdAsync(eventId);
-        if (authorId == @event.ResponsiblePersonId)
-        {
-            var eventPost = new EventPost
-            {
-                Id = Guid.NewGuid(),
-                EventId = eventId,
-                AuthorId = authorId,
-                Text = text,
-                CreatedAt = DateTime.UtcNow,
-            };
+        var result = await _eventPostService.AddPostAsync(eventId, authorId, text);
 
-            await _eventPostService.AddPostAsync(eventPost);
-            return Ok(new {result = eventPost});
-        }
-        else
-        {
-            return Unauthorized("Вы не являетесь владельцем мероприятия");
-        }
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok(new { result = result.Data });
     }
 
-    [HttpPut("{postId}")]
+    /// <summary>
+    /// Обновить пост
+    /// </summary>
+    [HttpPut("{eventId}/posts/{postId}")]
+    [Authorize]
     public async Task<IActionResult> UpdatePost(Guid postId, Guid eventId, string text)
     {
         var authorId = GetUserIdFromToken();
-        var post = await _eventPostService.GetPostByIdAsync(postId);
-        var @event = await _eventService.GetEventByIdAsync(eventId);
-        if (authorId == @event.ResponsiblePersonId)
-        {
-            post.Text = text;
-            await _eventPostService.UpdatePostAsync(post);
-            return Ok(new {result = post});
-        }
-        else
-        {
-            return Unauthorized("Вы не являетесь владельцем мероприятия");
-        }
+        var result = await _eventPostService.UpdatePostAsync(postId, eventId, authorId, text);
+
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok(new { result = result.Data });
     }
 
-    [HttpDelete("{postId}")]
+    /// <summary>
+    /// Удалить пост
+    /// </summary>
+    [HttpDelete("{eventId}/posts/{postId}")]
+    [Authorize]
     public async Task<IActionResult> DeletePost(Guid postId, Guid eventId)
     {
         var authorId = GetUserIdFromToken();
-        
-        var @event = await _eventService.GetEventByIdAsync(eventId);
-        if (authorId == @event.ResponsiblePersonId)
-        {
-            await _eventPostService.DeletePostAsync(postId);
-            return NoContent();
-        }
-        else
-        {
-            return Unauthorized("Вы не являетесь владельцем мероприятия");
-        }
+        var result = await _eventPostService.DeletePostAsync(postId, eventId, authorId);
+
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok(new { result = result.Data });
     }
     
     private Guid GetUserIdFromToken()

@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SEM.API.Controllers;
@@ -15,30 +16,49 @@ public class NotificationController : ControllerBase
         _notificationService = notificationService;
     }
 
+    /// <summary>
+    /// Получить уведомления текущего пользователя
+    /// </summary>
     [HttpGet()]
-    public async Task<IActionResult> GetNotifications()
+    [Authorize]
+    public async Task<IActionResult> GetNotifications(int count, int offset)
     {
         var userId = GetUserIdFromToken();
-        var notifications = await _notificationService.GetNotificationsForUserAsync(userId);
-        return Ok(new {result = notifications});
+        var result = await _notificationService.GetNotificationsForUserAsync(userId, count, offset);
+        return Ok(new
+        {
+            unreadCount = result.AdditionalData?["unreadCount"],
+            notifications = result.Data
+        });
     }
-
-    [HttpGet("unread-count")]
-    public async Task<IActionResult> GetUnreadCount()
+    
+    /// <summary>
+    /// Получить уведомление по ID
+    /// </summary>
+    [HttpGet("{notificationId}")]
+    [Authorize]
+    public async Task<IActionResult> GetNotificationById(Guid notificationId)
     {
-        var userId = GetUserIdFromToken();
-        var count = await _notificationService.GetUnreadCountAsync(userId);
-        return Ok(new {result = count});
+        var result = await _notificationService.GetByIdAsync(notificationId);
+        return Ok(new { result = result.Data });
     }
 
-    [HttpPost("{notificationId}/read")]
-    public async Task<IActionResult> MarkAsRead(Guid notificationId)
+    /// <summary>
+    /// Прочитать список уведомлений
+    /// </summary>
+    [HttpPost("read")]
+    [Authorize]
+    public async Task<IActionResult> MarkAsRead(List<Guid> notificationId)
     {
         await _notificationService.MarkAsReadAsync(notificationId);
         return Ok();
     }
 
+    /// <summary>
+    /// Прочитать все уведомления
+    /// </summary>
     [HttpPost("read-all")]
+    [Authorize]
     public async Task<IActionResult> MarkAllAsRead()
     {
         var userId = GetUserIdFromToken();

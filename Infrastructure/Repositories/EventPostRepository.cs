@@ -20,16 +20,17 @@ public class EventPostRepository: IEventPostRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<EventPost?> GetPostByIdAsync(Guid postId)
+    public async Task<EventPost?> GetPostByIdAsync(Guid eventId, Guid postId)
     {
-        return await _context.EventPosts.FirstOrDefaultAsync(p => p.Id == postId);
+        return await _context.EventPosts.FirstOrDefaultAsync(p => p.Id == postId && p.EventId == eventId);
     }
 
-    public async Task<List<EventPost>> GetPostsByEventIdAsync(Guid eventId)
+    public async Task<List<EventPost>> GetPostsByEventIdAsync(Guid eventId, int count, int offset)
     {
         return await _context.EventPosts
             .Where(p => p.EventId == eventId)
-            .OrderByDescending(p => p.CreatedAt)
+            .OrderByDescending(p => p.CreatedAt).Skip(offset)
+            .Take(count)
             .ToListAsync();
     }
 

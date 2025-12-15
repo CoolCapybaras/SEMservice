@@ -4,9 +4,9 @@ namespace Domain.Interfaces;
 
 public interface IEventPostService
 {
-    Task AddPostAsync(EventPost post);
-    Task<EventPost?> GetPostByIdAsync(Guid postId);
-    Task<List<EventPost>> GetPostsByEventIdAsync(Guid eventId);
-    Task DeletePostAsync(Guid postId);
-    Task UpdatePostAsync(EventPost post);
+    Task<ServiceResult<EventPost>> AddPostAsync(Guid eventId, Guid authorId, string text);
+    Task<ServiceResult<EventPost?>> GetPostByIdAsync(Guid eventId, Guid postId);
+    Task<ServiceResult<List<EventPost>>> GetPostsByEventIdAsync(Guid eventId, int count, int offset);
+    Task<ServiceResult<bool>> DeletePostAsync(Guid postId, Guid eventId, Guid authorId);
+    Task<ServiceResult<EventPost>> UpdatePostAsync(Guid postId, Guid eventId, Guid authorId, string text);
 }

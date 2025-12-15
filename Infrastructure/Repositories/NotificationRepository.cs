@@ -19,16 +19,17 @@ public class NotificationRepository: INotificationRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<Notification?> GetByIdAsync(Guid id)
+    public async Task<Notification> GetByIdAsync(Guid id)
     {
         return await _context.Notifications.FirstOrDefaultAsync(n => n.Id == id);
     }
 
-    public async Task<List<Notification>> GetUserNotificationsAsync(Guid userId)
+    public async Task<List<Notification>> GetUserNotificationsAsync(Guid userId, int count, int offset)
     {
         return await _context.Notifications
             .Where(n => n.UserId == userId)
-            .OrderByDescending(n => n.CreatedAt)
+            .OrderByDescending(n => n.CreatedAt).Skip(offset)
+            .Take(count)
             .ToListAsync();
     }
 
@@ -38,14 +39,22 @@ public class NotificationRepository: INotificationRepository
             .CountAsync(n => n.UserId == userId && !n.IsRead);
     }
 
-    public async Task MarkAsReadAsync(Guid notificationId)
+    public async Task MarkAsReadAsync(List<Guid> notificationIds)
     {
-        var n = await _context.Notifications.FirstOrDefaultAsync(n => n.Id == notificationId);
-        if (n != null && !n.IsRead)
+        var notifications = await _context.Notifications
+            .Where(n => notificationIds.Contains(n.Id) && !n.IsRead)
+            .ToListAsync();
+
+        if (!notifications.Any())
+            return;
+
+        // Обновляем статус
+        foreach (var n in notifications)
         {
             n.IsRead = true;
-            await _context.SaveChangesAsync();
         }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task MarkAllAsReadAsync(Guid userId)

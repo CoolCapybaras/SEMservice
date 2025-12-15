@@ -1,4 +1,6 @@
 
+using Domain;
+using Domain.DTO;
 using Microsoft.AspNetCore.Http;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
@@ -14,41 +16,99 @@ public class UserProfileService : IUserProfileService
         _profileRepository = profileRepository;
     }
 
-    public async Task<User?> GetProfileAsync(Guid userId)
+    public async Task<ServiceResult<User>> GetProfileAsync(Guid userId)
     {
         var profile = await _profileRepository.GetByIdAsync(userId);
-        return profile == null ? null : MapToModel(profile);
+
+        if (profile == null)
+        {
+            
+            var created = await CreateProfileIfNotExistsAsync(userId);
+            return ServiceResult<User>.Ok(MapToModel(created));
+        }
+
+        return ServiceResult<User>.Ok(MapToModel(profile));
     }
 
-    public async Task<User> UpdateProfileAsync(Guid userId, User updateModel)
+    public async Task<ServiceResult<User>> UpdateProfileAsync(Guid userId, UpdateProfileRequest updateModel)
     {
-        // Проверяем существует ли профиль
-        var exists = await _profileRepository.ProfileExistsAsync(userId);
-        
-        // Если профиль не существует, создаем его
-        if (!exists)
-        {
-            return await CreateProfileIfNotExistsAsync(userId);
-        }
-        
-        // Получаем текущий профиль
         var profile = await _profileRepository.GetByIdAsync(userId);
-        
-        // Обновляем поля профиля
-        profile!.LastName = updateModel.LastName ?? profile.LastName;
+        if (profile == null)
+        {
+            var createdProfile = await CreateProfileIfNotExistsAsync(userId);
+            profile = createdProfile;
+        }
+
+        // === Обновление данных профиля ===
+        profile.LastName = updateModel.LastName ?? profile.LastName;
         profile.FirstName = updateModel.FirstName ?? profile.FirstName;
         profile.MiddleName = updateModel.MiddleName ?? profile.MiddleName;
         profile.PhoneNumber = updateModel.PhoneNumber ?? profile.PhoneNumber;
         profile.Telegram = updateModel.Telegram ?? profile.Telegram;
         profile.City = updateModel.City ?? profile.City;
-        profile.EducationalInstitution = updateModel.EducationalInstitution ?? profile.EducationalInstitution;
-        profile.CourseNumber = updateModel.CourseNumber ?? profile.CourseNumber;
-        profile.AvatarUrl = updateModel.AvatarUrl ?? profile.AvatarUrl;
-        
-        // Сохраняем изменения
+
+        // === Сохранение ===
         var updatedProfile = await _profileRepository.UpdateProfileAsync(profile);
+
+        return ServiceResult<User>.Ok(MapToModel(updatedProfile));
+    }
+
+    public async Task<ServiceResult<String>> AddAvatarAsync(Guid userId, IFormFile? file)
+    {
+        var profile = await _profileRepository.GetByIdAsync(userId);
+        if (profile == null)
+        {
+            var createdProfile = await CreateProfileIfNotExistsAsync(userId);
+            profile = createdProfile;
+        }
         
-        return MapToModel(updatedProfile);
+        if (file != null && file.Length > 0)
+        {
+            const long maxSize = 5 * 1024 * 1024;
+            if (file.Length > maxSize)
+                return ServiceResult<String>.Fail("Размер файла превышает 5 МБ.");
+            
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            try
+            {
+                var uploadsFolder = Path.Combine("wwwroot", "avatars");
+                Directory.CreateDirectory(uploadsFolder);
+
+                var fileName = $"{Guid.NewGuid()}{extension}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                await using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+
+                profile.AvatarUrl = $"/avatars/{fileName}";
+            }
+            catch (Exception)
+            {
+                return ServiceResult<String>.Fail("Ошибка при сохранении изображения.");
+            }
+        }
+        var result = await _profileRepository.AddAvatarAsync(userId, profile.AvatarUrl);
+        
+        return ServiceResult<String>.Ok(profile.AvatarUrl);
+    }
+
+    public async Task<ServiceResult<List<Event>>> GetSubscribedEventsAsync(Guid userId)
+    {
+        var _event = await _profileRepository.GetSubscribedEventsAsync(userId);
+        return ServiceResult<List<Event>>.Ok(_event);
+    }
+
+    public async Task<ServiceResult<List<User>>> GetOrganizersAsync()
+    {
+        var organizers = await _profileRepository.GetOrganizers();
+        var result = new List<User>();
+        foreach (var organizer in organizers)
+        {
+            result.Add(MapToModel(organizer));
+        }
+
+        return ServiceResult<List<User>>.Ok(result);
     }
 
     public async Task<User> CreateProfileIfNotExistsAsync(Guid userId)
@@ -80,8 +140,6 @@ public class UserProfileService : IUserProfileService
             PhoneNumber = profile.PhoneNumber,
             Telegram = profile.Telegram,
             City = profile.City,
-            EducationalInstitution = profile.EducationalInstitution,
-            CourseNumber = profile.CourseNumber,
             AvatarUrl = profile.AvatarUrl
         };
     }
