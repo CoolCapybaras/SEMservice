@@ -270,10 +270,10 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpDelete("{eventId}/photos/{photoId}")]
     [Authorize]
-    public async Task<IActionResult> DeleteEventPhoto(Guid eventId, Guid roleId)
+    public async Task<IActionResult> DeleteEventPhoto(Guid eventId, Guid photoId)
     {
         var userId = GetUserIdFromToken();
-        var result = await _eventService.DeleteEventPhotoAsync(eventId, roleId, userId);
+        var result = await _eventService.DeleteEventPhotoAsync(eventId, photoId, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
     
