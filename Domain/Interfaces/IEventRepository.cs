@@ -20,7 +20,7 @@ public interface IEventRepository
     Task<List<EventUserResponse>> GetAllSuscribersAsync(Guid eventId, string? name, int count, int offset);
     Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name);
     Task<Event> UpdateEventAsync(Event @event);
-    Task<List<string>> GetEventPhotosAsync(Guid eventId, int count, int offset);
+    Task<List<PhotoResponse>> GetEventPhotosAsync(Guid eventId, int count, int offset);
     Task AddEventPhotoAsync(EventPhoto photo);
     Task AddContact(Guid eventId, Guid userId);
     Task<List<ContactResponse>> GetContacts(Guid eventId);

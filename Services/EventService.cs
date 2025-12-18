@@ -146,14 +146,14 @@ public class EventService : IEventService
         return ServiceResult<Event>.Ok(updatedEvent);
     }
 
-    public async Task<ServiceResult<List<string>>> GetEventPhotosAsync(Guid eventId, int count, int offset)
+    public async Task<ServiceResult<List<PhotoResponse>>> GetEventPhotosAsync(Guid eventId, int count, int offset)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
-            return ServiceResult<List<string>>.Fail("Мероприятие не найдено");
+            return ServiceResult<List<PhotoResponse>>.Fail("Мероприятие не найдено");
 
         var photos = await _eventRepository.GetEventPhotosAsync(eventId, offset, count);
-        return ServiceResult<List<string>>.Ok(photos);
+        return ServiceResult<List<PhotoResponse>>.Ok(photos);
     }
     
     public async Task<ServiceResult<string>> AddEventPhotoAsync(Guid eventId, IFormFile file)

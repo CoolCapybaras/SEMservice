@@ -384,13 +384,24 @@ public class EventRepository : IEventRepository
         return @event;
     }
 
-    public async Task<List<string>> GetEventPhotosAsync(Guid eventId, int count, int offset)
+    public async Task<List<PhotoResponse>> GetEventPhotosAsync(Guid eventId, int count, int offset)
     {
-        return await _context.EventPhotos
+        var results = await _context.EventPhotos
             .Where(p => p.EventId == eventId)
-            .Select(p => p.FilePath).Skip(offset)
+            .Skip(offset)
             .Take(count)
             .ToListAsync();
+        var response = new List<PhotoResponse>();
+        foreach (var photo in results)
+        {
+            var photoData = new PhotoResponse
+            {
+                Id = photo.Id,
+                FilePath = photo.FilePath,
+            };
+            response.Add(photoData);
+        }
+        return response;
     }
 
     public async Task AddEventPhotoAsync(EventPhoto photo)

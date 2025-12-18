@@ -19,7 +19,7 @@ public interface IEventService
     Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersAsync(Guid eventId, string? name, int count, int offset);
     Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name);
     Task<ServiceResult<Event>> UpdateEventAsync(Guid eventId, EventUpdateRequest request, Guid userId);
-    Task<ServiceResult<List<string>>> GetEventPhotosAsync(Guid eventId, int count, int offset);
+    Task<ServiceResult<List<PhotoResponse>>> GetEventPhotosAsync(Guid eventId, int count, int offset);
     Task<ServiceResult<string>> AddEventPhotoAsync(Guid eventId, IFormFile file);
     Task<ServiceResult<bool>> AddContact(Guid eventId, Guid userId, Guid currentUserId);
     Task<ServiceResult<List<ContactResponse>>> GetContacts(Guid eventId);
