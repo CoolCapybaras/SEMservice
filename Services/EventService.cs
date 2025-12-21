@@ -10,6 +10,7 @@ public class EventService : IEventService
 {
     private readonly IEventRepository _eventRepository;
     private readonly IUserProfileRepository _userProfileRepository;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public EventService(IEventRepository eventRepository, IUserProfileRepository userProfileRepository)
     {
@@ -24,16 +25,55 @@ public class EventService : IEventService
         {
             return ServiceResult<Event>.Fail("Вы не обладаете привилегиями для создания мероприятия");
         }
+        if (!EventColors.AllowedColors.Contains(request.Color))
+        {
+            return ServiceResult<Event>.Fail("Недопустимый цвет мероприятия");
+        }
         var createdEvent = await _eventRepository.AddEventAsync(request);
         return ServiceResult<Event>.Ok(createdEvent);
     }
 
-    public async Task<ServiceResult<Event>> GetEventByIdAsync(Guid eventId)
+    public async Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
-        return _event == null 
-            ? ServiceResult<Event>.Fail("Мероприятие не найдено") 
-            : ServiceResult<Event>.Ok(_event);
+        if (_event == null)
+            return ServiceResult<EventResponse>.Fail("Мероприятие не найдено");
+
+        var participants = _event.EventRoles?
+            .Select(er => er.User)
+            .Distinct()
+            .ToList() ?? new List<User>();
+        var response = new EventResponse
+        {
+            Id = _event.Id,
+            Name = _event.Name,
+            Description = _event.Description,
+            StartDate = _event.StartDate,
+            EndDate = _event.EndDate,
+            Location = _event.Location,
+            Format = _event.Format,
+            EventType = _event.EventType,
+            ResponsiblePersonId = _event.ResponsiblePersonId,
+            MaxParticipants = _event.MaxParticipants,
+            Color = _event.Color,
+            Categories = _event.EventCategories?.Select(ec => ec.Category.Name).ToList() ?? new List<string>(),
+            PreviewPhotos = _event.Photos?.Select(p => p.FilePath).ToList() ?? new List<string>(),
+            Participants = participants
+                .Take(7)
+                .Select(u => new UserResponse
+                {
+                    Id = u.Id,
+                    LastName = u.LastName,
+                    FirstName = u.FirstName,
+                    MiddleName = u.MiddleName,
+                    AvatarUrl = u.AvatarUrl
+                })
+                .ToList(),
+            ParticipantsCount = participants.Count,
+            status = _event.status
+        };
+
+        return ServiceResult<EventResponse>.Ok(response);
     }
 
     public async Task<ServiceResult<List<Event>>> SearchEventsAsync(SearchRequest request)

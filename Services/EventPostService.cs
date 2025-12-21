@@ -11,12 +11,14 @@ public class EventPostService : IEventPostService
     private readonly IEventPostRepository _eventPostRepository;
     private readonly INotificationService _notificationService;
     private readonly IEventService _eventService;
+    private readonly IEventRepository _eventRepository;
 
-    public EventPostService(IEventPostRepository eventPostRepository, IEventService eventService, INotificationService notificationService)
+    public EventPostService(IEventPostRepository eventPostRepository, IEventService eventService, INotificationService notificationService, IEventRepository eventRepository)
     {
         _eventPostRepository = eventPostRepository;
         _notificationService = notificationService;
         _eventService = eventService;
+        _eventRepository = eventRepository;
         
     }
 
@@ -115,14 +117,14 @@ public class EventPostService : IEventPostService
         if (post == null)
             return ServiceResult<EventPost>.Fail("Пост не найден");
 
-        var @event = await _eventService.GetEventByIdAsync(eventId);
+        var @event = await _eventRepository.GetEventByIdAsync(eventId);
         if (@event == null)
             return ServiceResult<EventPost>.Fail("Мероприятие не найдено");
 
-        if (@event.Data.ResponsiblePersonId != authorId)
+        if (@event.ResponsiblePersonId != authorId)
             return ServiceResult<EventPost>.Fail("Вы не являетесь владельцем мероприятия");
         
-        if (@event.Data.status == "FINISHED")
+        if (@event.status == "FINISHED")
             return ServiceResult<EventPost>.Fail("Мероприятие завершено");
 
         var textChanged = post.Text != text;
@@ -130,7 +132,7 @@ public class EventPostService : IEventPostService
         await _eventPostRepository.UpdatePostAsync(post);
 
         if (textChanged)
-            await SendPostNotificationAsync(post, @event.Data, "PostUpdated");
+            await SendPostNotificationAsync(post, @event, "PostUpdated");
 
         return ServiceResult<EventPost>.Ok(post);
     }

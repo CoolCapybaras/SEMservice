@@ -39,6 +39,7 @@ public class EventRepository : IEventRepository
             EventType = request.EventType,
             ResponsiblePersonId = request.ResponsiblePersonId,
             MaxParticipants = request.MaxParticipants ?? -1,
+            Color = request.Color
         };
         
 
@@ -113,6 +114,8 @@ public class EventRepository : IEventRepository
             .Include(e => e.EventCategories)
             .ThenInclude(ec => ec.Category)
             .Include(e => e.Photos)
+            .Include(e => e.EventRoles)
+            .ThenInclude(er => er.User)
             .FirstOrDefaultAsync(e => e.Id == eventId);
     }
 

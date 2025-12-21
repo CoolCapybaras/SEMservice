@@ -23,4 +23,6 @@ public class EventRequest
     public List<string> Categories { get; set; }
     
     public List<string> Roles { get; set; }
+    
+    public string Color { get; set; }
 }

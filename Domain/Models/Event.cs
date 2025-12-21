@@ -45,6 +45,10 @@ public class Event
 
     [JsonIgnore]
     public ICollection<EventCategory> EventCategories { get; set; }
+    
+    [Required]
+    [StringLength(7)]
+    public string Color { get; set; }
 
     [JsonPropertyName("categories")]
     public ICollection<string> CategoryNames => EventCategories?.Select(c => c.Category?.Name ?? string.Empty).ToList() 
