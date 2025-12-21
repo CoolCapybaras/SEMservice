@@ -22,7 +22,7 @@ public class EventPostService : IEventPostService
         
     }
 
-    public async Task<ServiceResult<EventPost>> AddPostAsync(Guid eventId, Guid authorId, string text)
+    public async Task<ServiceResult<EventPost>> AddPostAsync(Guid eventId, Guid authorId, string title, string text)
     {
         var @event = await _eventService.GetEventByIdAsync(eventId);
         if (@event == null)
@@ -39,6 +39,7 @@ public class EventPostService : IEventPostService
             Id = Guid.NewGuid(),
             EventId = eventId,
             AuthorId = authorId,
+            Title = title,
             Text = text,
             CreatedAt = DateTime.UtcNow
         };
@@ -111,7 +112,7 @@ public class EventPostService : IEventPostService
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<EventPost>> UpdatePostAsync(Guid postId, Guid eventId, Guid authorId, string text)
+    public async Task<ServiceResult<EventPost>> UpdatePostAsync(Guid postId, Guid eventId, Guid authorId, string title, string text)
     {
         var post = await _eventPostRepository.GetPostByIdAsync(eventId, postId);
         if (post == null)
@@ -128,7 +129,11 @@ public class EventPostService : IEventPostService
             return ServiceResult<EventPost>.Fail("Мероприятие завершено");
 
         var textChanged = post.Text != text;
-        post.Text = text;
+        if (textChanged && text != null)
+            post.Text = text;
+        var titleChanged = post.Title != title;
+        if (titleChanged && title != null)
+            post.Title = title;
         await _eventPostRepository.UpdatePostAsync(post);
 
         if (textChanged)

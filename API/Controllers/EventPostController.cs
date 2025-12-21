@@ -53,10 +53,10 @@ public class EventPostController : ControllerBase
     /// </summary>
     [HttpPost("{eventId}/posts")]
     [Authorize]
-    public async Task<IActionResult> CreatePost(Guid eventId, string text)
+    public async Task<IActionResult> CreatePost(Guid eventId, string title, string text)
     {
         var authorId = GetUserIdFromToken();
-        var result = await _eventPostService.AddPostAsync(eventId, authorId, text);
+        var result = await _eventPostService.AddPostAsync(eventId, authorId, title, text);
 
         if (!result.Success)
             return BadRequest(new { error = result.Error });
@@ -69,10 +69,10 @@ public class EventPostController : ControllerBase
     /// </summary>
     [HttpPut("{eventId}/posts/{postId}")]
     [Authorize]
-    public async Task<IActionResult> UpdatePost(Guid postId, Guid eventId, string text)
+    public async Task<IActionResult> UpdatePost(Guid postId, Guid eventId, string title, string text)
     {
         var authorId = GetUserIdFromToken();
-        var result = await _eventPostService.UpdatePostAsync(postId, eventId, authorId, text);
+        var result = await _eventPostService.UpdatePostAsync(postId, eventId, authorId, title, text);
 
         if (!result.Success)
             return BadRequest(new { error = result.Error });
