@@ -9,6 +9,9 @@ public class UserProfileResponse
     public string? PhoneNumber { get; set; }
     public string? Telegram { get; set; }
     public string? City { get; set; }
+    
+    public string UserPrivilege { get; set; }
         
     public string? AvatarUrl { get; set; }
 }
+

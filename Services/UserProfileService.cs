@@ -22,10 +22,10 @@ public class UserProfileService : IUserProfileService
 
         if (profile == null)
         {
-            
             var created = await CreateProfileIfNotExistsAsync(userId);
             return ServiceResult<User>.Ok(MapToModel(created));
         }
+        Console.WriteLine(profile);
 
         return ServiceResult<User>.Ok(MapToModel(profile));
     }
@@ -140,6 +140,7 @@ public class UserProfileService : IUserProfileService
             PhoneNumber = profile.PhoneNumber,
             Telegram = profile.Telegram,
             City = profile.City,
+            UserPrivilege = profile.UserPrivilege,
             AvatarUrl = profile.AvatarUrl
         };
     }

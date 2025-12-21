@@ -138,6 +138,7 @@ public class AdminService: IAdminService
             PhoneNumber = profile.PhoneNumber,
             Telegram = profile.Telegram,
             City = profile.City,
+            UserPrivilege = profile.UserPrivilege,
             AvatarUrl = profile.AvatarUrl
         };
     }

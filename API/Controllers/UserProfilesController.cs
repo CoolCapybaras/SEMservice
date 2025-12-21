@@ -109,6 +109,7 @@ public class ProfileController : ControllerBase
             PhoneNumber = model.PhoneNumber,
             Telegram = model.Telegram,
             City = model.City,
+            UserPrivilege = model.UserPrivilege.ToString(),
             AvatarUrl = model.AvatarUrl
         };
     }
