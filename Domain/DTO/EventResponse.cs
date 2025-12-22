@@ -36,4 +36,6 @@ public class EventResponse
     public List<UserResponse> Participants { get; set; }
     
     public int ParticipantsCount { get; set; }
+    
+    public string Avatar { get; set; }
 }

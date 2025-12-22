@@ -7,4 +7,6 @@ public class UserResponse
     public string? FirstName { get; set; }
     public string? MiddleName { get; set; }
     public string? AvatarUrl { get; set; }
+    
+    public bool IsContact {get; set;}
 }

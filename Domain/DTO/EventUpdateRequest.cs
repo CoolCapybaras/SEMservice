@@ -1,4 +1,6 @@
-﻿namespace Domain.DTO;
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Domain.DTO;
 
 public class EventUpdateRequest
 {
@@ -18,4 +20,6 @@ public class EventUpdateRequest
     public string EventType { get; set; }
 
     public int? MaxParticipants { get; set; }
+    
+    public IFormFile? Avatar { get; set; }
 }

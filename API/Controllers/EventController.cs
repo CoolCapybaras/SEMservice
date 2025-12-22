@@ -25,7 +25,7 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize]
-    public async Task<IActionResult> CreateEvent([FromBody] EventRequest request)
+    public async Task<IActionResult> CreateEvent([FromForm] EventRequest request)
     {
         var modId = GetUserIdFromToken();
         var result = await _eventService.CreateEventAsync(request, modId);
@@ -129,7 +129,7 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpPut("{eventId}")]
     [Authorize]
-    public async Task<IActionResult> UpdateEvent(Guid eventId, [FromBody] EventUpdateRequest request)
+    public async Task<IActionResult> UpdateEvent(Guid eventId, [FromForm] EventUpdateRequest request)
     {
         var userId = GetUserIdFromToken();
         var result = await _eventService.UpdateEventAsync(eventId, request, userId);

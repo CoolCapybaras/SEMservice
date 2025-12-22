@@ -1,4 +1,6 @@
-﻿namespace Domain.DTO;
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Domain.DTO;
 
 public class EventRequest
 {
@@ -25,4 +27,6 @@ public class EventRequest
     public List<string> Roles { get; set; }
     
     public string Color { get; set; }
+    
+    public IFormFile? Avatar { get; set; }
 }

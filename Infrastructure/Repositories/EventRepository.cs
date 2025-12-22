@@ -25,8 +25,28 @@ public class EventRepository : IEventRepository
             .Where(name => !existingCategories.Any(c => c.Name == name))
             .Select(name => new Category { Name = name })
             .ToList();
+        string? avatarPath = null;
+        if (request.Avatar != null && request.Avatar.Length > 0)
+        {
+            var avatarsFolder = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "event-avatars"
+            );
+            if (!Directory.Exists(avatarsFolder))
+                Directory.CreateDirectory(avatarsFolder);
 
-        
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Avatar.FileName)}";
+            var filePath = Path.Combine(avatarsFolder, fileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await request.Avatar.CopyToAsync(stream);
+            }
+
+            avatarPath = "/" + Path.Combine("event-avatars", fileName)
+                .Replace("\\", "/");
+        }
         
         var newEvent = new Event
         {
@@ -39,7 +59,8 @@ public class EventRepository : IEventRepository
             EventType = request.EventType,
             ResponsiblePersonId = request.ResponsiblePersonId,
             MaxParticipants = request.MaxParticipants ?? -1,
-            Color = request.Color
+            Color = request.Color,
+            Avatar = avatarPath,
         };
         
 

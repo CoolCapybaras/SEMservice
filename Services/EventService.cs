@@ -40,9 +40,18 @@ public class EventService : IEventService
             return ServiceResult<EventResponse>.Fail("Мероприятие не найдено");
 
         var participants = _event.EventRoles?
-            .Select(er => er.User)
-            .Distinct()
-            .ToList() ?? new List<User>();
+            .Where(er => er.User != null)
+            .Select(er => new UserResponse()
+            {
+                Id = er.User.Id,
+                LastName = er.User.LastName,
+                FirstName = er.User.FirstName,
+                MiddleName = er.User.MiddleName,
+                AvatarUrl = er.User.AvatarUrl,
+                IsContact = er.IsContact
+            })
+            .ToList()
+        ?? new List<UserResponse>();
         var response = new EventResponse
         {
             Id = _event.Id,
@@ -56,19 +65,10 @@ public class EventService : IEventService
             ResponsiblePersonId = _event.ResponsiblePersonId,
             MaxParticipants = _event.MaxParticipants,
             Color = _event.Color,
+            Avatar = _event.Avatar,
             Categories = _event.EventCategories?.Select(ec => ec.Category.Name).ToList() ?? new List<string>(),
             PreviewPhotos = _event.Photos?.Select(p => p.FilePath).ToList() ?? new List<string>(),
-            Participants = participants
-                .Take(7)
-                .Select(u => new UserResponse
-                {
-                    Id = u.Id,
-                    LastName = u.LastName,
-                    FirstName = u.FirstName,
-                    MiddleName = u.MiddleName,
-                    AvatarUrl = u.AvatarUrl
-                })
-                .ToList(),
+            Participants = participants,
             ParticipantsCount = participants.Count,
             status = _event.status
         };
@@ -181,6 +181,41 @@ public class EventService : IEventService
         curEvent.Format = request.Format ?? curEvent.Format;
         curEvent.EventType = request.EventType ?? curEvent.EventType;
         curEvent.MaxParticipants = request.MaxParticipants ?? curEvent.MaxParticipants;
+        
+        if (request.Avatar != null && request.Avatar.Length > 0)
+        {
+            var avatarsFolder = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "event-avatars"
+            );
+            if (!Directory.Exists(avatarsFolder))
+                Directory.CreateDirectory(avatarsFolder);
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Avatar.FileName)}";
+            var filePath = Path.Combine(avatarsFolder, fileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await request.Avatar.CopyToAsync(stream);
+            }
+
+            var relativePath = "/" + Path.Combine("event-avatars", fileName)
+                .Replace("\\", "/");
+            if (!string.IsNullOrEmpty(curEvent.Avatar))
+            {
+                var oldPath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    curEvent.Avatar.TrimStart('/')
+                );
+
+                if (File.Exists(oldPath))
+                    File.Delete(oldPath);
+            }
+
+            curEvent.Avatar = relativePath;
+        }
 
         var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
         return ServiceResult<Event>.Ok(updatedEvent);
