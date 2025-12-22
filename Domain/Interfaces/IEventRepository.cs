@@ -33,4 +33,5 @@ public interface IEventRepository
     Task<string> GetEventPhotoByIdAsync(Guid eventId, Guid photoId);
     Task DeleteEventPhotoAsync(Guid eventId, Guid photoId);
     Task DeleteContact(Guid eventId, Guid userId);
+    Task DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds);
 }

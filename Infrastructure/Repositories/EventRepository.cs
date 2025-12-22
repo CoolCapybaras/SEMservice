@@ -537,6 +537,11 @@ public class EventRepository : IEventRepository
     public async Task DeleteEventPhotoAsync(Guid eventId, Guid photoId)
     {
         var photo = await _context.EventPhotos.Where(p => p.EventId == eventId).FirstOrDefaultAsync(p => p.Id == photoId);
+        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", Path.GetFileName(photo.FilePath));
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
         _context.EventPhotos.Remove(photo);
         await _context.SaveChangesAsync();
     }
@@ -547,6 +552,27 @@ public class EventRepository : IEventRepository
             .FirstOrDefaultAsync(er => er.EventId == eventId && er.UserId == userId);
         
         user.IsContact = false;
+        await _context.SaveChangesAsync();
+    }
+    
+    public async Task DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds)
+    {
+        var photos = await _context.EventPhotos
+            .Where(p => p.EventId == eventId && photoIds.Contains(p.Id))
+            .ToListAsync();
+
+        if (!photos.Any())
+            return;
+        foreach (var photo in photos)
+        {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", Path.GetFileName(photo.FilePath));
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        _context.EventPhotos.RemoveRange(photos);
         await _context.SaveChangesAsync();
     }
 }

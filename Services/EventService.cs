@@ -404,4 +404,17 @@ public class EventService : IEventService
         await _eventRepository.DeleteContact(eventId, userId);
         return ServiceResult<bool>.Ok(true);
     }
+    
+    public async Task<ServiceResult<bool>> DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds, Guid userId)
+    {
+        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
+        if (curEvent == null)
+            return ServiceResult<bool>.Fail("Мероприятие не найдено");
+
+        if (curEvent.ResponsiblePersonId != userId)
+            return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
+
+        await _eventRepository.DeleteEventPhotosAsync(eventId, photoIds);
+        return ServiceResult<bool>.Ok(true);
+    }
 }

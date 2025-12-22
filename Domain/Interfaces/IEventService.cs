@@ -32,4 +32,5 @@ public interface IEventService
     Task<ServiceResult<string>> GetEventPhotoByIdAsync(Guid eventId, Guid photoId);
     Task<ServiceResult<bool>> DeleteEventPhotoAsync(Guid eventId, Guid photoId, Guid userId);
     Task<ServiceResult<bool>> DeleteContact(Guid eventId, Guid userId, Guid currentUserId);
+    Task<ServiceResult<bool>> DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds, Guid userId);
 }

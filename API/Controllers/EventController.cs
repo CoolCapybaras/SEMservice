@@ -277,6 +277,22 @@ public class EventController : ControllerBase
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
     
+    /// <summary>
+    /// Удалить несколько фото мероприятия
+    /// </summary>
+    [HttpDelete("{eventId}/photos")]
+    [Authorize]
+    public async Task<IActionResult> DeleteEventPhotos(Guid eventId, List<Guid> photoIds)
+    {
+        var userId = GetUserIdFromToken();
+
+        var result = await _eventService.DeleteEventPhotosAsync(eventId, photoIds, userId);
+
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
+    
     
     
     
