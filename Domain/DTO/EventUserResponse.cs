@@ -10,4 +10,5 @@ public class EventUserResponse
     public string City { get; set; }
     public string AvatarUrl { get; set; }
     public string Role { get; set; }
+    public bool IsContact {get; set;}
 }

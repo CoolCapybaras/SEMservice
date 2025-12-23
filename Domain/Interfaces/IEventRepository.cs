@@ -15,10 +15,11 @@ public interface IEventRepository
     Task AddEventCategoryConnAsync(Guid newEventId, Guid categoryId);
     Task AddSuscriberAsync(Guid eventId, Guid userId);
     Task DeleteSuscriber(Guid eventId, Guid userId);
+    Task DeleteSuscriberByOrganizer(Guid eventId, Guid userId);
     Task<EventRole> AddRoleToUser(Guid eventId, Guid userId, Guid roleId);
     Task<List<Roles>> GetRolesByEvent(Guid eventId, int count, int offset);
-    Task<List<EventUserResponse>> GetAllSuscribersAsync(Guid eventId, string? name, int count, int offset);
-    Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name);
+    Task<EventUserAndCountResponse> GetAllSuscribersAsync(Guid eventId, string? name, string? roleFil, int count, int offset);
+    Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? roleFil);
     Task<Event> UpdateEventAsync(Event @event);
     Task<List<PhotoResponse>> GetEventPhotosAsync(Guid eventId, int count, int offset);
     Task AddEventPhotoAsync(EventPhoto photo);
@@ -34,4 +35,5 @@ public interface IEventRepository
     Task DeleteEventPhotoAsync(Guid eventId, Guid photoId);
     Task DeleteContact(Guid eventId, Guid userId);
     Task DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds);
+    Task<Event> UpdateAvatarEventAsync(Event entity);
 }

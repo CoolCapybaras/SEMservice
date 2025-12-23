@@ -88,11 +88,13 @@ builder.Services.AddSwaggerGen(c =>
 // --------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("LocalhostPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -124,7 +126,13 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
                        Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
 });
 
-app.UseCors("AllowAll");
+app.UseCors("LocalhostPolicy");
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
@@ -132,13 +140,7 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "SEM API v1");
 });
 
-app.UseAuthentication();
-app.UseAuthorization();
-
 app.MapControllers();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-app.MapFallbackToFile("index.html");
 
 app.Run();

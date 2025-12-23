@@ -20,6 +20,4 @@ public class EventUpdateRequest
     public string EventType { get; set; }
 
     public int? MaxParticipants { get; set; }
-    
-    public IFormFile? Avatar { get; set; }
 }

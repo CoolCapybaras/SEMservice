@@ -50,6 +50,7 @@ public class EventService : IEventService
                 AvatarUrl = er.User.AvatarUrl,
                 IsContact = er.IsContact
             })
+            .Take(7)
             .ToList()
         ?? new List<UserResponse>();
         var response = new EventResponse
@@ -123,6 +124,22 @@ public class EventService : IEventService
         await _eventRepository.DeleteSuscriber(eventId, userId);
         return ServiceResult<bool>.Ok(true);
     }
+    
+    public async Task<ServiceResult<bool>> DeleteByOrganizerSuscriber(Guid eventId, Guid userId, Guid organizerId)
+    {
+        var _event = await _eventRepository.GetEventByIdAsync(eventId);
+        if (_event == null)
+            return ServiceResult<bool>.Fail("Мероприятие не найдено");
+        if (_event.status == "FINISHED")
+            return ServiceResult<bool>.Fail("Мероприятие завершено");
+        if (_event.ResponsiblePersonId != organizerId)
+            return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
+        if (userId == organizerId)
+            return ServiceResult<bool>.Fail("Вы организатор, вы не можете удалить себя");
+
+        await _eventRepository.DeleteSuscriberByOrganizer(eventId, userId);
+        return ServiceResult<bool>.Ok(true);
+    }
 
     public async Task<ServiceResult<EventRole>> AddRoleToUser(Guid eventId, Guid userId, Guid roleId, Guid currentUserId)
     {
@@ -149,15 +166,15 @@ public class EventService : IEventService
         return ServiceResult<List<Roles>>.Ok(roles);
     }
 
-    public async Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersAsync(Guid eventId, string? name, int count, int offset)
+    public async Task<ServiceResult<EventUserAndCountResponse>> GetAllSuscribersAsync(Guid eventId, string? name, string? role, int count, int offset)
     {
-        var subs = await _eventRepository.GetAllSuscribersAsync(eventId, name, count, offset);
-        return ServiceResult<List<EventUserResponse>>.Ok(subs);
+        var subs = await _eventRepository.GetAllSuscribersAsync(eventId, name, role, count, offset);
+        return ServiceResult<EventUserAndCountResponse>.Ok(subs);
     }
     
-    public async Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name)
+    public async Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? role)
     {
-        var subs = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(eventId, name);
+        var subs = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(eventId, name, role);
         return ServiceResult<List<EventUserResponse>>.Ok(subs);
     }
 
@@ -181,41 +198,6 @@ public class EventService : IEventService
         curEvent.Format = request.Format ?? curEvent.Format;
         curEvent.EventType = request.EventType ?? curEvent.EventType;
         curEvent.MaxParticipants = request.MaxParticipants ?? curEvent.MaxParticipants;
-        
-        if (request.Avatar != null && request.Avatar.Length > 0)
-        {
-            var avatarsFolder = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "wwwroot",
-                "event-avatars"
-            );
-            if (!Directory.Exists(avatarsFolder))
-                Directory.CreateDirectory(avatarsFolder);
-
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Avatar.FileName)}";
-            var filePath = Path.Combine(avatarsFolder, fileName);
-
-            await using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await request.Avatar.CopyToAsync(stream);
-            }
-
-            var relativePath = "/" + Path.Combine("event-avatars", fileName)
-                .Replace("\\", "/");
-            if (!string.IsNullOrEmpty(curEvent.Avatar))
-            {
-                var oldPath = Path.Combine(
-                    Directory.GetCurrentDirectory(),
-                    "wwwroot",
-                    curEvent.Avatar.TrimStart('/')
-                );
-
-                if (File.Exists(oldPath))
-                    File.Delete(oldPath);
-            }
-
-            curEvent.Avatar = relativePath;
-        }
 
         var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
         return ServiceResult<Event>.Ok(updatedEvent);
@@ -416,5 +398,46 @@ public class EventService : IEventService
 
         await _eventRepository.DeleteEventPhotosAsync(eventId, photoIds);
         return ServiceResult<bool>.Ok(true);
+    }
+    
+    public async Task<ServiceResult<string>> UploadEventAvatarAsync(Guid eventId, IFormFile avatar, Guid userId)
+    {
+        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
+        if (curEvent == null)
+            return ServiceResult<string>.Fail("Мероприятие не найдено");
+
+        if (curEvent.ResponsiblePersonId != userId)
+            return ServiceResult<string>.Fail("Вы не являетесь создателем мероприятия");
+
+        if (curEvent.status == "FINISHED")
+            return ServiceResult<string>.Fail("Мероприятие завершено");
+
+        if (avatar == null || avatar.Length == 0)
+            return ServiceResult<string>.Fail("Файл не загружен");
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "event-avatars");
+        Directory.CreateDirectory(uploadsFolder);
+
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(avatar.FileName)}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await avatar.CopyToAsync(stream);
+        }
+
+        var relativePath = $"/event-avatars/{fileName}";
+        
+        if (!string.IsNullOrEmpty(curEvent.Avatar))
+        {
+            var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", curEvent.Avatar.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+            if (File.Exists(oldPath))
+                File.Delete(oldPath);
+        }
+
+        curEvent.Avatar = relativePath;
+        await _eventRepository.UpdateAvatarEventAsync(curEvent);
+
+        return ServiceResult<string>.Ok(relativePath);
     }
 }

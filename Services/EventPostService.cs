@@ -56,7 +56,7 @@ public class EventPostService : IEventPostService
             created_at = post.CreatedAt
         };
 
-        var subscribers = await _eventService.GetAllSuscribersWithoutOffsetAsync(post.EventId, null);
+        var subscribers = await _eventService.GetAllSuscribersWithoutOffsetAsync(post.EventId, null, null);
         foreach (var user in subscribers.Data)
         {
             var notification = new Notification
@@ -153,7 +153,7 @@ public class EventPostService : IEventPostService
             created_at = post.CreatedAt
         };
 
-        var subscribers = await _eventService.GetAllSuscribersWithoutOffsetAsync(post.EventId, null);
+        var subscribers = await _eventService.GetAllSuscribersWithoutOffsetAsync(post.EventId, null, null);
         foreach (var user in subscribers.Data)
         {
             var notification = new Notification

@@ -25,28 +25,6 @@ public class EventRepository : IEventRepository
             .Where(name => !existingCategories.Any(c => c.Name == name))
             .Select(name => new Category { Name = name })
             .ToList();
-        string? avatarPath = null;
-        if (request.Avatar != null && request.Avatar.Length > 0)
-        {
-            var avatarsFolder = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "wwwroot",
-                "event-avatars"
-            );
-            if (!Directory.Exists(avatarsFolder))
-                Directory.CreateDirectory(avatarsFolder);
-
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Avatar.FileName)}";
-            var filePath = Path.Combine(avatarsFolder, fileName);
-
-            await using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await request.Avatar.CopyToAsync(stream);
-            }
-
-            avatarPath = "/" + Path.Combine("event-avatars", fileName)
-                .Replace("\\", "/");
-        }
         
         var newEvent = new Event
         {
@@ -60,7 +38,6 @@ public class EventRepository : IEventRepository
             ResponsiblePersonId = request.ResponsiblePersonId,
             MaxParticipants = request.MaxParticipants ?? -1,
             Color = request.Color,
-            Avatar = avatarPath,
         };
         
 
@@ -284,6 +261,15 @@ public class EventRepository : IEventRepository
         _context.EventRoles.Remove(participantToDelete);
         await _context.SaveChangesAsync();
     }
+    
+    public async Task DeleteSuscriberByOrganizer(Guid eventId, Guid userId)
+    {
+        var participantToDelete = await _context.EventRoles
+            .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId);
+
+        _context.EventRoles.Remove(participantToDelete);
+        await _context.SaveChangesAsync();
+    }
 
     public async Task<EventRole> AddRoleToUser(Guid eventId, Guid userId, Guid roleId)
     {
@@ -329,13 +315,15 @@ public class EventRepository : IEventRepository
         return res;
     }
 
-    public async Task<List<EventUserResponse>> GetAllSuscribersAsync(Guid eventId, string? name, int count, int offset)
+    public async Task<EventUserAndCountResponse> GetAllSuscribersAsync(Guid eventId, string? name, string? roleFil, int count, int offset)
     {
         List<EventRole> userRoles = await _context.EventRoles
             .Where(r => r.EventId == eventId)
             .Distinct().Skip(offset)
             .Take(count)
             .ToListAsync();
+        
+        int totalCount = userRoles.Count;
         List<EventUserResponse> usersRoles = new List<EventUserResponse>();
         foreach (EventRole userRole in userRoles)
         {
@@ -348,7 +336,13 @@ public class EventRepository : IEventRepository
                 if (!fullName.Contains(lowered))
                     continue;
             }
+            
             Roles role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == userRole.RoleId);
+            if (!string.IsNullOrWhiteSpace(roleFil))
+            {
+                if (!role.Name.Equals(roleFil, StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
             EventUserResponse eventUser = new EventUserResponse
             {
                 id = user.Id,
@@ -358,14 +352,20 @@ public class EventRepository : IEventRepository
                 Telegram = user.Telegram,
                 City = user.City,
                 AvatarUrl = user.AvatarUrl,
-                Role = role.Name
+                Role = role.Name,
+                IsContact = userRole.IsContact,
             };
             usersRoles.Add(eventUser);
         }
-        return usersRoles;
+
+        return new EventUserAndCountResponse
+        {
+            Users = usersRoles,
+            TotalCount = totalCount
+        };
     }
     
-    public async Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name)
+    public async Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? roleFil)
     {
         List<EventRole> userRoles = await _context.EventRoles
             .Where(r => r.EventId == eventId)
@@ -384,6 +384,11 @@ public class EventRepository : IEventRepository
                     continue;
             }
             Roles role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == userRole.RoleId);
+            if (!string.IsNullOrWhiteSpace(roleFil))
+            {
+                if (!role.Name.Equals(roleFil, StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
             EventUserResponse eventUser = new EventUserResponse
             {
                 id = user.Id,
@@ -574,5 +579,12 @@ public class EventRepository : IEventRepository
 
         _context.EventPhotos.RemoveRange(photos);
         await _context.SaveChangesAsync();
+    }
+    
+    public async Task<Event> UpdateAvatarEventAsync(Event entity)
+    {
+        _context.Events.Update(entity);
+        await _context.SaveChangesAsync();
+        return entity;
     }
 }

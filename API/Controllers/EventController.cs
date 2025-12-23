@@ -25,7 +25,7 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize]
-    public async Task<IActionResult> CreateEvent([FromForm] EventRequest request)
+    public async Task<IActionResult> CreateEvent([FromBody] EventRequest request)
     {
         var modId = GetUserIdFromToken();
         var result = await _eventService.CreateEventAsync(request, modId);
@@ -89,6 +89,18 @@ public class EventController : ControllerBase
         var result = await _eventService.DeleteSuscriber(eventId, userId);
         return result.Success ? Ok(new { result = eventId, userId }) : BadRequest(new { error = result.Error });
     }
+    
+    /// <summary>
+    /// Отписать пользователя от мероприятия
+    /// </summary>
+    [HttpPost("{eventId}/unsubscribe/{userId}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteByOrganizeSuscriber(Guid eventId, Guid userId)
+    {
+        var organizeId = GetUserIdFromToken();
+        var result = await _eventService.DeleteByOrganizerSuscriber(eventId, userId, organizeId);
+        return result.Success ? Ok(new { result = eventId, userId }) : BadRequest(new { error = result.Error });
+    }
 
     /// <summary>
     /// Дать пользователю роль на мероприятии
@@ -118,9 +130,9 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpGet("{eventId}/subscribers")]
     [Authorize]
-    public async Task<IActionResult> GetAllSuscribersAsync(Guid eventId, [FromQuery] string? name, int count, int offset)
+    public async Task<IActionResult> GetAllSuscribersAsync(Guid eventId, [FromQuery] string? name, string? role, int count, int offset)
     {
-        var result = await _eventService.GetAllSuscribersAsync(eventId, name, count, offset);
+        var result = await _eventService.GetAllSuscribersAsync(eventId, name, role, count, offset);
         return result.Success ? Ok(new { res = result.Data }) : BadRequest(new { error = result.Error });
     }
     
@@ -129,7 +141,7 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpPut("{eventId}")]
     [Authorize]
-    public async Task<IActionResult> UpdateEvent(Guid eventId, [FromForm] EventUpdateRequest request)
+    public async Task<IActionResult> UpdateEvent(Guid eventId, [FromBody] EventUpdateRequest request)
     {
         var userId = GetUserIdFromToken();
         var result = await _eventService.UpdateEventAsync(eventId, request, userId);
@@ -290,6 +302,27 @@ public class EventController : ControllerBase
 
         return result.Success
             ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
+    /// Загрузка аватарки мероприятия
+    /// </summary>
+    [HttpPost("{eventId}/avatar")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadEventAvatar(Guid eventId, IFormFile avatar)
+    {
+        var userId = GetUserIdFromToken();
+
+        var result = await _eventService.UploadEventAvatarAsync(
+            eventId,
+            avatar,
+            userId
+        );
+
+        return result.Success
+            ? Ok(new { avatar = result.Data })
             : BadRequest(new { error = result.Error });
     }
     

@@ -11,11 +11,11 @@ public class Event
 
     [Required]
     [StringLength(200)]
-    public string Name { get; set; }
+    public string? Name { get; set; }
     
-    public string Avatar { get; set; }
+    public string? Avatar { get; set; }
 
-    public string Description { get; set; }
+    public string? Description { get; set; }
 
     [Required]
     public DateTime? StartDate { get; set; }
