@@ -1,3 +1,3 @@
 @echo off
-dotnet build API.csproj --configuration Release --runtime linux-x64
+dotnet publish API.csproj --runtime linux-x64
 pause
