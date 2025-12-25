@@ -198,6 +198,7 @@ public class EventService : IEventService
         curEvent.Format = request.Format ?? curEvent.Format;
         curEvent.EventType = request.EventType ?? curEvent.EventType;
         curEvent.MaxParticipants = request.MaxParticipants ?? curEvent.MaxParticipants;
+        curEvent.Color = request.Color ?? curEvent.Color;
 
         var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
         return ServiceResult<Event>.Ok(updatedEvent);

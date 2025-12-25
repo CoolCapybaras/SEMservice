@@ -20,4 +20,6 @@ public class EventUpdateRequest
     public string EventType { get; set; }
 
     public int? MaxParticipants { get; set; }
+    
+    public string Color {get; set;}
 }
