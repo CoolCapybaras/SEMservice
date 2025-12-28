@@ -168,6 +168,11 @@ public class EventRepository : IEventRepository
             .ToListAsync();
     }
 
+    public async Task<List<Event>> GetMyEventsAsync(Guid userId)
+    {
+        return await _context.Events.Where(e => e.ResponsiblePersonId == userId).ToListAsync();
+    }
+
     public async Task AddCategoryAsync(Category category)
     {
         await _context.Categories.AddAsync(category);
@@ -177,6 +182,20 @@ public class EventRepository : IEventRepository
     public async Task<List<Category>> GetAllCategoriesAsync()
     {
         return await _context.Categories.ToListAsync();
+    }
+    
+    public async Task<List<CategoryResponse>> GetEventCategoriesAsync(Guid eventId)
+    {
+        var categories = await _context.EventCategories
+            .Where(ec => ec.EventId == eventId)
+            .Select(ec => new CategoryResponse
+            {
+                Id = ec.Category.Id,
+                Name = ec.Category.Name
+            })
+            .ToListAsync();
+
+        return categories;
     }
 
     public async Task DeleteEventAndUnusedCategoriesAsync(Event eventToDelete)
@@ -193,6 +212,11 @@ public class EventRepository : IEventRepository
 
         var roleIds = eventRoles.Select(r => r.RoleId).ToList();
         var categoryIds = eventCategories.Select(ec => ec.CategoryId).ToList();
+        
+        var avatarPath = eventToDelete.Avatar.TrimStart('/');
+        var avatarFullpath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", avatarPath);
+        if (File.Exists(avatarFullpath))
+            File.Delete(avatarFullpath);
 
         _context.EventCategories.RemoveRange(eventCategories);
         _context.EventRoles.RemoveRange(eventRoles);
@@ -210,7 +234,6 @@ public class EventRepository : IEventRepository
                 File.Delete(fullPath);
             }
         }
-
 
         var unusedCategories = await _context.Categories
             .Where(c => categoryIds.Contains(c.Id))
@@ -237,6 +260,65 @@ public class EventRepository : IEventRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<EventCategory> AddCategoryToEventAsync(Guid eventId, string categoryName)
+    {
+        var category = await _context.Categories
+            .FirstOrDefaultAsync(c => c.Name.ToLower() == categoryName.ToLower());
+
+        if (category == null)
+        {
+            category = new Category
+            {
+                Id = Guid.NewGuid(),
+                Name = categoryName
+            };
+            _context.Categories.Add(category);
+            await _context.SaveChangesAsync();
+        }
+        
+        var existingLink = await _context.EventCategories
+            .FirstOrDefaultAsync(ec => ec.EventId == eventId && ec.CategoryId == category.Id);
+
+        if (existingLink != null)
+        {
+            return existingLink;
+        }
+        
+        var eventCategory = new EventCategory
+        {
+            EventId = eventId,
+            CategoryId = category.Id
+        };
+
+        _context.EventCategories.Add(eventCategory);
+        await _context.SaveChangesAsync();
+
+        return eventCategory;
+    }
+    
+    public async Task DeleteCategoryInEventAsync(Guid eventId, Guid categoryId)
+    {
+        var eventCategory = await _context.EventCategories
+            .FirstOrDefaultAsync(ec => ec.EventId == eventId && ec.CategoryId == categoryId);
+
+        if (eventCategory == null)
+            throw new Exception("Связка ивента с категорией не найдена.");
+        
+        var categoryUsageCount = await _context.EventCategories
+            .CountAsync(ec => ec.CategoryId == categoryId);
+        
+        _context.EventCategories.Remove(eventCategory);
+        
+        if (categoryUsageCount <= 1)
+        {
+            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
+            if (category != null)
+                _context.Categories.Remove(category);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+    
     public async Task AddSuscriberAsync(Guid eventId, Guid userId)
     {
         var participantEventRole = await _context.Roles

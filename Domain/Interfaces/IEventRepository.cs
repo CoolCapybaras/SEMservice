@@ -9,6 +9,10 @@ public interface IEventRepository
     Task<IEnumerable<Event>> GetAllEventsAsync();
     Task<Event?> GetEventByIdAsync(Guid eventId);
     Task<List<Event>> SearchEventsAsync(SearchRequest request);
+    Task<List<CategoryResponse>> GetEventCategoriesAsync(Guid eventId);
+    Task<List<Event>> GetMyEventsAsync(Guid userId);
+    Task<EventCategory> AddCategoryToEventAsync(Guid eventId, string categoryName);
+    Task DeleteCategoryInEventAsync(Guid eventId, Guid categoryId);
     Task AddCategoryAsync(Category category);
     Task<List<Category>> GetAllCategoriesAsync();
     Task DeleteEventAndUnusedCategoriesAsync(Event eventToDelete);

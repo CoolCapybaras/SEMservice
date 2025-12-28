@@ -20,24 +20,12 @@ public class UserProfileService : IUserProfileService
     {
         var profile = await _profileRepository.GetByIdAsync(userId);
 
-        if (profile == null)
-        {
-            var created = await CreateProfileIfNotExistsAsync(userId);
-            return ServiceResult<User>.Ok(MapToModel(created));
-        }
-        Console.WriteLine(profile);
-
         return ServiceResult<User>.Ok(MapToModel(profile));
     }
 
     public async Task<ServiceResult<User>> UpdateProfileAsync(Guid userId, UpdateProfileRequest updateModel)
     {
         var profile = await _profileRepository.GetByIdAsync(userId);
-        if (profile == null)
-        {
-            var createdProfile = await CreateProfileIfNotExistsAsync(userId);
-            profile = createdProfile;
-        }
 
         // === Обновление данных профиля ===
         profile.LastName = updateModel.LastName ?? profile.LastName;
@@ -56,11 +44,6 @@ public class UserProfileService : IUserProfileService
     public async Task<ServiceResult<String>> AddAvatarAsync(Guid userId, IFormFile? file)
     {
         var profile = await _profileRepository.GetByIdAsync(userId);
-        if (profile == null)
-        {
-            var createdProfile = await CreateProfileIfNotExistsAsync(userId);
-            profile = createdProfile;
-        }
         
         if (file != null && file.Length > 0)
         {
@@ -109,23 +92,6 @@ public class UserProfileService : IUserProfileService
         }
 
         return ServiceResult<List<User>>.Ok(result);
-    }
-
-    public async Task<User> CreateProfileIfNotExistsAsync(Guid userId)
-    {
-        // Проверяем существует ли профиль
-        var exists = await _profileRepository.ProfileExistsAsync(userId);
-        
-        if (exists)
-        {
-            var profile = await _profileRepository.GetByIdAsync(userId);
-            return MapToModel(profile!);
-        }
-        
-        // Создаем новый профиль
-        var newProfile = await _profileRepository.CreateProfileAsync(userId);
-        
-        return MapToModel(newProfile);
     }
 
     // Преобразование из модели данных в модель бизнес-логики

@@ -10,6 +10,8 @@ public interface IEventService
     Task<ServiceResult<Event>> CreateEventAsync(EventRequest newEvent, Guid modId);
     Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId);
     Task<ServiceResult<List<Event>>> SearchEventsAsync(SearchRequest request);
+    Task<ServiceResult<List<CategoryResponse>>> GetEventCategoriesAsync(Guid eventId);
+    Task<ServiceResult<List<Event>>> GetMyEventsAsync(Guid userId);
     Task<ServiceResult<List<Category>>> GetAllCategoriesAsync();
     Task<ServiceResult<bool>> DeleteEventAsync(Guid eventId, Guid userId);
     Task<ServiceResult<bool>> AddSuscriberAsync(Guid eventId, Guid userId);
@@ -24,6 +26,8 @@ public interface IEventService
     Task<ServiceResult<string>> AddEventPhotoAsync(Guid eventId, IFormFile file);
     Task<ServiceResult<bool>> AddContact(Guid eventId, Guid userId, Guid currentUserId);
     Task<ServiceResult<List<ContactResponse>>> GetContacts(Guid eventId);
+    Task<ServiceResult<EventCategory>> AddCategoryToEventAsync(Guid eventId, string categoryName, Guid userId);
+    Task<ServiceResult<bool>> DeleteCategoryInEventAsync(Guid eventId, Guid categoryId, Guid userId);
     Task<ServiceResult<Roles>> GetRoleByName(string roleName);
     Task<ServiceResult<Event>> FinishEventAsync(Guid Eventid, Guid userId);
     Task<ServiceResult<Roles>> CreateRoleAsync(string roleName, Guid eventId, Guid userId);

@@ -9,7 +9,6 @@ public interface IUserProfileService
 {
     Task<ServiceResult<User>> GetProfileAsync(Guid userId);
     Task<ServiceResult<User>> UpdateProfileAsync(Guid userId, UpdateProfileRequest updateModel);
-    Task<User> CreateProfileIfNotExistsAsync(Guid userId);
     Task<ServiceResult<String>> AddAvatarAsync(Guid userId, IFormFile? file);
     Task<ServiceResult<List<Event>>> GetSubscribedEventsAsync(Guid userId);
     Task<ServiceResult<List<User>>> GetOrganizersAsync();

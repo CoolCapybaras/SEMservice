@@ -83,10 +83,49 @@ public class EventService : IEventService
         return ServiceResult<List<Event>>.Ok(events);
     }
 
+    public async Task<ServiceResult<List<CategoryResponse>>> GetEventCategoriesAsync(Guid eventId)
+    {
+        var _event = await _eventRepository.GetEventByIdAsync(eventId);
+        if (_event == null)
+            return ServiceResult<List<CategoryResponse>>.Fail("Мероприятие не найдено");
+        var categories = await _eventRepository.GetEventCategoriesAsync(eventId);
+        return ServiceResult<List<CategoryResponse>>.Ok(categories);
+    }
+    
+    public async Task<ServiceResult<List<Event>>> GetMyEventsAsync(Guid userId)
+    {
+        var events = await _eventRepository.GetMyEventsAsync(userId);
+        return ServiceResult<List<Event>>.Ok(events);
+    }
+
     public async Task<ServiceResult<List<Category>>> GetAllCategoriesAsync()
     {
         var categories = await _eventRepository.GetAllCategoriesAsync();
         return ServiceResult<List<Category>>.Ok(categories);
+    }
+
+    public async Task<ServiceResult<EventCategory>> AddCategoryToEventAsync(Guid eventId, string categoryName, Guid userId)
+    {
+        var _event = await _eventRepository.GetEventByIdAsync(eventId);
+        if (_event == null)
+            return ServiceResult<EventCategory>.Fail("Мероприятие не найдено");
+        if (_event.ResponsiblePersonId != userId)
+            return ServiceResult<EventCategory>.Fail("Вы не являетесь владельцем мероприятия");
+        
+        var newCategory = await _eventRepository.AddCategoryToEventAsync(eventId, categoryName);
+        return ServiceResult<EventCategory>.Ok(newCategory);
+    }
+    
+    public async Task<ServiceResult<bool>> DeleteCategoryInEventAsync(Guid eventId, Guid categoryId, Guid userId)
+    {
+        var _event = await _eventRepository.GetEventByIdAsync(eventId);
+        if (_event == null)
+            return ServiceResult<bool>.Fail("Мероприятие не найдено");
+        if (_event.ResponsiblePersonId != userId)
+            return ServiceResult<bool>.Fail("Вы не являетесь владельцем мероприятия");
+        
+        await _eventRepository.DeleteCategoryInEventAsync(eventId, categoryId);
+        return ServiceResult<bool>.Ok(true);
     }
 
     public async Task<ServiceResult<bool>> DeleteEventAsync(Guid eventId, Guid userId)

@@ -36,6 +36,7 @@ public class UserManager : IUserManager
 
             var newUser = new User
             {
+                Id = Guid.NewGuid(),
                 Email = email,
                 PasswordHash = hashedPassword,
                 FirstName = "User" // Имя по умолчанию

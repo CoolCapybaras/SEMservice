@@ -55,6 +55,18 @@ public class EventController : ControllerBase
     }
 
     /// <summary>
+    /// Получить мероприятия созданные текущим пользователем
+    /// </summary>
+    [HttpGet("myevents")]
+    [Authorize]
+    public async Task<IActionResult> GetMyEvents()
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.GetMyEventsAsync(userId);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
     /// Удалить мероприятие
     /// </summary>
     [HttpDelete("{eventId}")]
@@ -326,6 +338,35 @@ public class EventController : ControllerBase
             : BadRequest(new { error = result.Error });
     }
     
+    
+    /// <summary>
+    /// Получить категории мероприятия
+    /// </summary>
+    [HttpGet("{eventId}/categories")]
+    [Authorize]
+    public async Task<IActionResult> GetEventCategories(Guid eventId)
+    {
+        var result = await _eventService.GetEventCategoriesAsync(eventId);
+
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
+    /// Удалить категорию в мероприятии 
+    /// </summary>
+    [HttpDelete("{eventId}/categories/{categoryId}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteCategoryInEvent(Guid eventId, Guid categoryId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.DeleteCategoryInEventAsync(eventId, categoryId, userId);
+
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
     
     
     
