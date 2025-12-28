@@ -46,7 +46,7 @@ public class EventService : IEventService
                 Id = er.User.Id,
                 LastName = er.User.LastName,
                 FirstName = er.User.FirstName,
-                MiddleName = er.User.MiddleName,
+                Profession = er.User.Profession,
                 AvatarUrl = er.User.AvatarUrl,
                 IsContact = er.IsContact
             })

@@ -331,7 +331,7 @@ public class EventRepository : IEventRepository
             if (!string.IsNullOrWhiteSpace(name))
             {
                 string lowered = name.ToLower();
-                string fullName = $"{user.LastName} {user.FirstName} {user.MiddleName}".ToLower();
+                string fullName = $"{user.LastName} {user.FirstName}".ToLower();
 
                 if (!fullName.Contains(lowered))
                     continue;
@@ -347,7 +347,8 @@ public class EventRepository : IEventRepository
             {
                 id = user.Id,
                 Email = user.Email,
-                Name = $"{user.LastName} {user.FirstName} {user.MiddleName}",
+                Name = $"{user.LastName} {user.FirstName}",
+                Profession = user.Profession,
                 PhoneNumber = user.PhoneNumber,
                 Telegram = user.Telegram,
                 City = user.City,
@@ -378,7 +379,7 @@ public class EventRepository : IEventRepository
             if (!string.IsNullOrWhiteSpace(name))
             {
                 string lowered = name.ToLower();
-                string fullName = $"{user.LastName} {user.FirstName} {user.MiddleName}".ToLower();
+                string fullName = $"{user.LastName} {user.FirstName}".ToLower();
 
                 if (!fullName.Contains(lowered))
                     continue;
@@ -393,7 +394,8 @@ public class EventRepository : IEventRepository
             {
                 id = user.Id,
                 Email = user.Email,
-                Name = $"{user.LastName} {user.FirstName} {user.MiddleName}",
+                Name = $"{user.LastName} {user.FirstName}",
+                Profession = user.Profession,
                 PhoneNumber = user.PhoneNumber,
                 Telegram = user.Telegram,
                 City = user.City,
@@ -460,7 +462,8 @@ public class EventRepository : IEventRepository
         {
             var user = new ContactResponse
             {
-                Name = $"{userEventRole.User.LastName} {userEventRole.User.FirstName} {userEventRole.User.MiddleName}",
+                Name = $"{userEventRole.User.LastName} {userEventRole.User.FirstName}",
+                Profession = userEventRole.User.Profession,
                 Role = userEventRole.Role.Name,
                 AvatarUrl = userEventRole.User.AvatarUrl
             };

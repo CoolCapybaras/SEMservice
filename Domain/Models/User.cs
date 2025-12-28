@@ -20,7 +20,7 @@ public class User
     [Required] 
     public string? FirstName { get; set; } = "User";
     
-    public string? MiddleName { get; set; }
+    public string? Profession { get; set; }
     
     public string? PhoneNumber { get; set; }
     

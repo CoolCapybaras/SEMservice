@@ -42,7 +42,7 @@ public class UserProfileService : IUserProfileService
         // === Обновление данных профиля ===
         profile.LastName = updateModel.LastName ?? profile.LastName;
         profile.FirstName = updateModel.FirstName ?? profile.FirstName;
-        profile.MiddleName = updateModel.MiddleName ?? profile.MiddleName;
+        profile.Profession = updateModel.Profession ?? profile.Profession;
         profile.PhoneNumber = updateModel.PhoneNumber ?? profile.PhoneNumber;
         profile.Telegram = updateModel.Telegram ?? profile.Telegram;
         profile.City = updateModel.City ?? profile.City;
@@ -136,7 +136,7 @@ public class UserProfileService : IUserProfileService
             Id = profile.Id,
             LastName = profile.LastName,
             FirstName = profile.FirstName,
-            MiddleName = profile.MiddleName,
+            Profession = profile.Profession,
             PhoneNumber = profile.PhoneNumber,
             Telegram = profile.Telegram,
             City = profile.City,

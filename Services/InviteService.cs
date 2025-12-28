@@ -50,7 +50,7 @@ public class InviteService : IInviteService
         {
             invite_id = invite.Id,
             community_name = @event.Name,
-            inviter_username = $"{user.LastName} {user.FirstName} {user.MiddleName}" 
+            inviter_username = $"{user.LastName} {user.FirstName}" 
         };
 
         var notification = new Notification
@@ -147,7 +147,7 @@ public class InviteService : IInviteService
             Id = profile.Id,
             LastName = profile.LastName,
             FirstName = profile.FirstName,
-            MiddleName = profile.MiddleName,
+            Profession = profile.Profession,
             PhoneNumber = profile.PhoneNumber,
             Telegram = profile.Telegram,
             City = profile.City,

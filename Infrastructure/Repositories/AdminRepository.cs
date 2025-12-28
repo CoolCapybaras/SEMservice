@@ -32,16 +32,16 @@ public class AdminRepository: IAdminRepository
             query = query.Where(e => EF.Functions.ILike(e.LastName, $"{request.LastName}%"));
         }
 
-        // Фильтр по Отчеству
-        if (!string.IsNullOrWhiteSpace(request.MiddleName))
+        // Фильтр по Должности
+        if (!string.IsNullOrWhiteSpace(request.Profession))
         {
-            query = query.Where(e => EF.Functions.ILike(e.MiddleName, $"{request.MiddleName}%"));
+            query = query.Where(e => EF.Functions.ILike(e.Profession, $"{request.Profession}%"));
         }
 
         // Фильтр по Городу
         if (!string.IsNullOrWhiteSpace(request.City))
         {
-            query = query.Where(e => EF.Functions.ILike(e.MiddleName, $"{request.MiddleName}%"));
+            query = query.Where(e => EF.Functions.ILike(e.City, $"{request.City}%"));
         }
 
         query = query
@@ -100,7 +100,7 @@ public class AdminRepository: IAdminRepository
             Id = model.Id,
             LastName = model.LastName,
             FirstName = model.FirstName,
-            MiddleName = model.MiddleName,
+            Profession = model.Profession,
             PhoneNumber = model.PhoneNumber,
             Telegram = model.Telegram,
             City = model.City,

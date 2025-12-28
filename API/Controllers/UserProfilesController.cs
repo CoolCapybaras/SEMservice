@@ -105,7 +105,7 @@ public class ProfileController : ControllerBase
             Id = model.Id,
             LastName = model.LastName,
             FirstName = model.FirstName,
-            MiddleName = model.MiddleName,
+            Profession = model.Profession,
             PhoneNumber = model.PhoneNumber,
             Telegram = model.Telegram,
             City = model.City,
