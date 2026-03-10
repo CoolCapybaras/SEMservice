@@ -25,6 +25,7 @@ public static class InfrastructureStartUp
         services.AddScoped<IAdminRepository, AdminRepository>();
         services.AddScoped<IBoardColumnRepository, BoardColumnRepository>();
         services.AddScoped<IBoardTaskRepository, BoardTaskRepository>();
+        services.AddScoped<IChatRepository, ChatRepository>();
 
         return services;
     }
