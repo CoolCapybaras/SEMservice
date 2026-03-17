@@ -1,22 +1,28 @@
 ﻿using Domain;
 using Domain.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using SEM.Domain.Models;
 using SEM.Infrastructure.Repositories;
+using SEM.Services.Hubs;
 
 namespace SEM.Services;
 
 public class NotificationService : INotificationService
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly IHubContext<NotificationHub> _notificationHubContext;
 
-    public NotificationService(INotificationRepository notificationRepository)
+    public NotificationService(INotificationRepository notificationRepository, IHubContext<NotificationHub> notificationHubContext)
     {
         _notificationRepository = notificationRepository;
+        _notificationHubContext = notificationHubContext;
     }
 
     public async Task<ServiceResult<bool>> AddNotificationAsync(Notification notification)
     {
         await _notificationRepository.AddNotificationAsync(notification);
+        await _notificationHubContext.Clients.Group(notification.UserId.ToString())
+            .SendAsync("NotificationReceived", notification);
         return ServiceResult<bool>.Ok(true);
     }
 

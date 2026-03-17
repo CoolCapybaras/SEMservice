@@ -17,6 +17,8 @@ public class EventChatMessage
 
     [Required]
     public string Text { get; set; } = string.Empty;
+    
+    public ICollection<EventChatAttachment> Attachments { get; set; } = new List<EventChatAttachment>();
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

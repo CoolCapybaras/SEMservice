@@ -57,9 +57,9 @@ public class UserManager : IUserManager
             return ServiceResult<AuthResponse>.Ok(auth);
         }
 
-        public async Task<ServiceResult<bool>> LogoutAsync()
+        public async Task<ServiceResult<bool>> LogoutAsync(Guid userId)
         {
-            await Task.CompletedTask;
+            await _userRepository.RevokeAllForUserAsync(userId);
             return ServiceResult<bool>.Ok(true);
         }
         

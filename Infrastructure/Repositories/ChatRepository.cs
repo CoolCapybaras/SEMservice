@@ -18,6 +18,7 @@ public class ChatRepository : IChatRepository
     {
         return await _context.EventChatMessages
             .Where(m => m.EventId == eventId)
+            .Include(m => m.Attachments)
             .OrderByDescending(m => m.CreatedAt)
             .Skip(offset)
             .Take(count)
@@ -28,5 +29,12 @@ public class ChatRepository : IChatRepository
     {
         await _context.EventChatMessages.AddAsync(message);
         await _context.SaveChangesAsync();
+    }
+    
+    public async Task<EventChatAttachment?> GetAttachmentByIdAsync(Guid attachmentId)
+    {
+        return await _context.EventChatAttachments
+            .Include(a => a.Message)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId);
     }
 }

@@ -64,7 +64,11 @@ public class UserController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Logout()
     {
-        var result = await _userManager.LogoutAsync();
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { error = "Некорректный идентификатор пользователя" });
+
+        var result = await _userManager.LogoutAsync(userId);
         if (!result.Success)
             return BadRequest(new { error = result.Error });
 

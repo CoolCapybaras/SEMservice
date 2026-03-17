@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using SEM.Infrastructure.Data;
 using SEM.Services;
 using Infrastructure;
+using SEM.Services.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,22 @@ builder.Services.AddAuthentication(options =>
                                    ?? throw new InvalidOperationException("JWT:Key is not configured"))),
         
         ClockSkew = TimeSpan.Zero
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) &&
+                (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/hubs/notifications")))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -102,12 +119,17 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // --------------------
-// 6. Build App
+// 6. SignalR
+// --------------------
+builder.Services.AddSignalR();
+
+// --------------------
+// 7. Build App
 // --------------------
 var app = builder.Build();
 
 // --------------------
-// 7. Миграции базы
+// 8. Миграции базы
 // --------------------
 using (var scope = app.Services.CreateScope())
 {
@@ -116,7 +138,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // --------------------
-// 8. Middlewares
+// 9. Middlewares
 // --------------------
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
@@ -140,5 +162,10 @@ app.UseSwaggerUI(c =>
 
 app.MapControllers();
 
+// --------------------
+// 10. SignalR hubs
+// --------------------
+app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

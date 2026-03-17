@@ -10,6 +10,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Event> Events { get; set; }
     
     public DbSet<EventChatMessage> EventChatMessages { get; set; }
+    public DbSet<EventChatAttachment> EventChatAttachments { get; set; }
 
     public DbSet<Category> Categories { get; set; }
 
