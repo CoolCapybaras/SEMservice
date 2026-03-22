@@ -72,7 +72,7 @@ var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
 builder.Services.AddSwaggerGen(c =>
 {
     c.IncludeXmlComments(xmlPath);
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SEM API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SEM API", Version = "v2" });
 
     // Поддержка JWT в Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme

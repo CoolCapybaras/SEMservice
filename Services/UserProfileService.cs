@@ -94,6 +94,12 @@ public class UserProfileService : IUserProfileService
         return ServiceResult<List<User>>.Ok(result);
     }
 
+    public async Task<ServiceResult<SystemRoleResponse>> GetSystemRoleAsync(Guid userId)
+    {
+        var systemRole = await _profileRepository.GetSystemRoleAsync(userId);
+        return ServiceResult<SystemRoleResponse>.Ok(systemRole);
+    }
+
     // Преобразование из модели данных в модель бизнес-логики
     private static User MapToModel(User profile)
     {

@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using Domain.DTO;
 using Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -30,15 +31,37 @@ public class EventChatController : ControllerBase
             ? Ok(new { result = result.Data })
             : BadRequest(new { error = result.Error });
     }
+    
+    /// <summary>
+    /// Поиск сообщений по подстроке в тексте (без учёта регистра), от самого раннего к позднему.
+    /// </summary>
+    [HttpGet("messages/search")]
+    [Authorize]
+    public async Task<IActionResult> SearchMessages(Guid eventId, [FromQuery] string text, [FromQuery] int maxResults = 500)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _chatService.SearchMessagesAsync(eventId, text, userId, maxResults);
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
 
     public class SendMessageRequest
     {
         public string Text { get; set; } = string.Empty;
+        
+        public Guid? ReplyToMessageId { get; set; }
     }
     
     public class SendMessageWithFilesRequest
     {
         public string? Text { get; set; }
+        public List<IFormFile>? Files { get; set; }
+        public Guid? ReplyToMessageId { get; set; }
+    }
+    
+    public class AddMessageAttachmentsForm
+    {
         public List<IFormFile>? Files { get; set; }
     }
 
@@ -50,7 +73,7 @@ public class EventChatController : ControllerBase
     public async Task<IActionResult> SendMessage(Guid eventId, [FromBody] SendMessageRequest request)
     {
         var userId = GetUserIdFromToken();
-        var result = await _chatService.AddMessageAsync(eventId, userId, request.Text);
+        var result = await _chatService.AddMessageAsync(eventId, userId, request.Text, null, request.ReplyToMessageId);
         return result.Success
             ? Ok(new { result = result.Data })
             : BadRequest(new { error = result.Error });
@@ -98,7 +121,7 @@ public class EventChatController : ControllerBase
             }
         }
 
-        var result = await _chatService.AddMessageAsync(eventId, userId, request.Text ?? string.Empty, attachments);
+        var result = await _chatService.AddMessageAsync(eventId, userId, request.Text ?? string.Empty, attachments, request.ReplyToMessageId);
         return result.Success
             ? Ok(new { result = result.Data })
             : BadRequest(new { error = result.Error });
@@ -124,6 +147,95 @@ public class EventChatController : ControllerBase
             return NotFound(new { error = "Файл не найден" });
 
         return PhysicalFile(fullPath, attachment.ContentType, attachment.OriginalFileName);
+    }
+    
+    /// <summary>
+    /// Редактировать своё сообщение: текст и/или удаление вложений по id. Если текст менять не нужно, можно не передавать
+    /// </summary>
+    [HttpPatch("messages/{messageId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> UpdateMessage(Guid eventId, Guid messageId, [FromBody] UpdateChatMessageRequest request)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _chatService.UpdateMessageAsync(eventId, messageId, userId, request.Text, request.RemoveAttachmentIds);
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
+    /// Добавить файлы к своему сообщению.
+    /// </summary>
+    [HttpPost("messages/{messageId:guid}/attachments")]
+    [Consumes("multipart/form-data")]
+    [Authorize]
+    public async Task<IActionResult> AddMessageAttachments(Guid eventId, Guid messageId, [FromForm] AddMessageAttachmentsForm form)
+    {
+        var userId = GetUserIdFromToken();
+        var attachments = new List<EventChatAttachment>();
+        if (form.Files is { Count: > 0 })
+        {
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "chat-attachments", eventId.ToString());
+            Directory.CreateDirectory(uploadsFolder);
+
+            foreach (var file in form.Files)
+            {
+                if (file == null || file.Length == 0)
+                    continue;
+
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                await using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var relativePath = "/" + Path.Combine("chat-attachments", eventId.ToString(), fileName).Replace("\\", "/");
+                attachments.Add(new EventChatAttachment
+                {
+                    Id = Guid.NewGuid(),
+                    FilePath = relativePath,
+                    OriginalFileName = file.FileName,
+                    ContentType = file.ContentType ?? "application/octet-stream",
+                    Size = file.Length,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        var result = await _chatService.AddAttachmentsToMessageAsync(eventId, messageId, userId, attachments);
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
+    /// Удалить одно вложение у своего сообщения.
+    /// </summary>
+    [HttpDelete("messages/{messageId:guid}/attachments/{attachmentId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> RemoveMessageAttachment(Guid eventId, Guid messageId, Guid attachmentId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _chatService.RemoveAttachmentFromMessageAsync(eventId, messageId, userId, attachmentId);
+        return result.Success
+            ? Ok(new { result = result.Data })
+            : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>
+    /// Удалить своё сообщение (вложения удаляются с диска).
+    /// </summary>
+    [HttpDelete("messages/{messageId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteMessage(Guid eventId, Guid messageId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _chatService.DeleteMessageAsync(eventId, messageId, userId);
+        return result.Success
+            ? Ok(new { success = true })
+            : BadRequest(new { error = result.Error });
     }
 
     private Guid GetUserIdFromToken()

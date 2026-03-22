@@ -1,3 +1,4 @@
+using Domain.DTO;
 using Microsoft.EntityFrameworkCore;
 using SEM.Domain.Models;
 using SEM.Domain.Interfaces;
@@ -63,7 +64,17 @@ public class UserProfileRepository : IUserProfileRepository
         var modUsers = await _dbContext.Users.Where(e => e.UserPrivilege == UserPrivilege.ORGANIZER).ToListAsync();
         return modUsers;
     }
-    
+
+    public async Task<SystemRoleResponse> GetSystemRoleAsync(Guid userId)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(p => p.Id == userId);
+        var systemRoleResponse = new SystemRoleResponse
+        {
+            RoleName = user.UserPrivilege.ToString(),
+        };
+        return systemRoleResponse;
+    }
+
     public async Task<bool> ProfileExistsAsync(Guid userId)
     {
         return await _dbContext.Users.AnyAsync(p => p.Id == userId);

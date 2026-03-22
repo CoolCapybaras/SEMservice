@@ -1,3 +1,4 @@
+using Domain.DTO;
 using SEM.Domain.Models;
 
 namespace SEM.Domain.Interfaces;
@@ -11,4 +12,6 @@ public interface IUserProfileRepository
     Task<String> AddAvatarAsync(Guid userId, string avatarUrl);
     Task<List<Event>> GetSubscribedEventsAsync(Guid userId);
     Task<List<User>> GetOrganizers();
+    
+    Task<SystemRoleResponse> GetSystemRoleAsync(Guid userId);
 } 

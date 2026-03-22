@@ -85,6 +85,19 @@ public class ProfileController : ControllerBase
 
         return Ok(result.Data!);
     }
+
+    [HttpGet("system/role")]
+    [Authorize]
+    public async Task<IActionResult> GetSystemRole()
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _profileService.GetSystemRoleAsync(userId);
+        
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok(result.Data!);
+    }
     
     private Guid GetUserIdFromToken()
     {

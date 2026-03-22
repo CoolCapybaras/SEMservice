@@ -21,4 +21,10 @@ public class EventChatMessage
     public ICollection<EventChatAttachment> Attachments { get; set; } = new List<EventChatAttachment>();
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    public DateTime? UpdatedAt { get; set; }
+    
+    public Guid? ReplyToMessageId { get; set; }
+    [JsonIgnore]
+    public EventChatMessage? ReplyToMessage { get; set; }
 }
