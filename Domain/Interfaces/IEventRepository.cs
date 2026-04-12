@@ -25,6 +25,7 @@ public interface IEventRepository
     Task<EventUserAndCountResponse> GetAllSuscribersAsync(Guid eventId, string? name, string? roleFil, int count, int offset);
     Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? roleFil);
     Task<Event> UpdateEventAsync(Event @event);
+    Task ReplaceEventTypesAsync(Guid eventId, IReadOnlyList<EventTypeKind> types);
     Task<List<PhotoResponse>> GetEventPhotosAsync(Guid eventId, int count, int offset);
     Task AddEventPhotoAsync(EventPhoto photo);
     Task AddContact(Guid eventId, Guid userId);

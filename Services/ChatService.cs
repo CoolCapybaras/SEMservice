@@ -86,7 +86,7 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<EventChatMessage>.Fail("Мероприятие не найдено");
 
-        if (@event.status == "FINISHED")
+        if (@event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<EventChatMessage>.Fail("Мероприятие завершено, чат недоступен для отправки сообщений");
 
         var isParticipant = await IsUserParticipantAsync(eventId, userId, @event.ResponsiblePersonId);
@@ -182,7 +182,7 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие не найдено");
 
-        if (@event.status == "FINISHED")
+        if (@event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие завершено, чат недоступен");
 
         if (removeAttachmentIds is { Count: > 0 })
@@ -244,7 +244,7 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие не найдено");
 
-        if (@event.status == "FINISHED")
+        if (@event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие завершено, чат недоступен");
 
         foreach (var a in newAttachments)
@@ -299,7 +299,7 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
 
-        if (@event.status == "FINISHED")
+        if (@event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено, чат недоступен");
 
         foreach (var att in message.Attachments)

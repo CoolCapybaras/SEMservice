@@ -18,87 +18,89 @@ public class EventRepository : IEventRepository
 
     public async Task<Event> AddEventAsync(EventRequest request)
     {
-        var existingCategories = await _context.Categories
-            .Where(c => request.Categories.Contains(c.Name))
-            .ToListAsync();
-        var newCategories = request.Categories
-            .Where(name => !existingCategories.Any(c => c.Name == name))
-            .Select(name => new Category { Name = name })
-            .ToList();
-        
-        var newEvent = new Event
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        try
         {
-            Name = request.Name,
-            Description = request.Description,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            Location = request.Location,
-            Format = request.Format,
-            EventType = request.EventType,
-            ResponsiblePersonId = request.ResponsiblePersonId,
-            MaxParticipants = request.MaxParticipants ?? -1,
-            Color = request.Color,
-        };
-        
+            var eventId = Guid.NewGuid();
+            var tagNames = request.Categories ?? new List<string>();
+            var existingCategories = await _context.Categories
+                .Where(c => tagNames.Contains(c.Name))
+                .ToListAsync();
+            var newCategories = tagNames
+                .Where(name => !existingCategories.Any(c => c.Name == name))
+                .Select(name => new Category { Id = Guid.NewGuid(), Name = name })
+                .ToList();
 
-        _context.Categories.AddRange(newCategories);
-        _context.Events.Add(newEvent);
-        await _context.SaveChangesAsync();
-        
-        var newRoles = new List<Roles>();
-        foreach (var role in request.Roles)
-        {
-            var newRole = new Roles
+            var newEvent = new Event
             {
-                Name = role,
-                EventId = newEvent.Id
+                Id = eventId,
+                Name = request.Name,
+                Description = request.Description,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                Location = request.Location,
+                Auditorium = request.Auditorium,
+                VenueFormat = request.VenueFormat,
+                LifecycleState = EventLifecycleState.Draft,
+                ResponsiblePersonId = request.ResponsiblePersonId,
+                MaxParticipants = request.MaxParticipants ?? -1,
+                Color = request.Color,
             };
-            newRoles.Add(newRole);
-        }
 
-        var organizatorRole = new Roles
-        {
-            Name = "Организатор",
-            EventId = newEvent.Id
-        };
-        newRoles.Add(organizatorRole);
-        var participantRole = new Roles
-        {
-            Name = "Участник",
-            EventId = newEvent.Id
-        };
-        newRoles.Add(participantRole);
-        
+            _context.Categories.AddRange(newCategories);
+            _context.Events.Add(newEvent);
 
-        _context.Roles.AddRange(newRoles);
-        await _context.SaveChangesAsync();
+            foreach (var kind in request.Types.Distinct())
+                _context.EventSelectedTypes.Add(new EventSelectedType { EventId = eventId, TypeKind = kind });
 
-        
-        var eventCategories = existingCategories.Concat(newCategories)
-            .Select(c => new EventCategory
+            var roleEntities = new Dictionary<ParticipantRoleKind, Roles>();
+            foreach (ParticipantRoleKind kind in Enum.GetValues<ParticipantRoleKind>())
             {
-                EventId = newEvent.Id,
-                CategoryId = c.Id
-            })
-            .ToList();
+                roleEntities[kind] = new Roles
+                {
+                    Id = Guid.NewGuid(),
+                    Name = EventRoleTemplates.NameFor(kind),
+                    EventId = eventId
+                };
+            }
 
-        Event newEventId = await _context.Events.FirstOrDefaultAsync(r => r == newEvent);
-        var organizatorEventRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.Name == "Организатор" && r.EventId == newEventId.Id);
+            _context.Roles.AddRange(roleEntities.Values);
+            await _context.SaveChangesAsync();
 
-        var eventOrganiztor = new EventRole
+            var allCategories = existingCategories.Concat(newCategories).ToList();
+            var eventCategories = allCategories
+                .Where(c => tagNames.Contains(c.Name))
+                .Select(c => new EventCategory { EventId = eventId, CategoryId = c.Id })
+                .ToList();
+            _context.EventCategories.AddRange(eventCategories);
+
+            var roleByUser = new Dictionary<Guid, ParticipantRoleKind>();
+            foreach (var p in request.Participants ?? new List<EventParticipantAssignmentDto>())
+                roleByUser[p.UserId] = p.Role;
+            roleByUser[request.ResponsiblePersonId] = ParticipantRoleKind.Organizer;
+
+            foreach (var (userId, kind) in roleByUser)
+            {
+                var roleRow = roleEntities[kind];
+                await _context.EventRoles.AddAsync(new EventRole
+                {
+                    EventId = eventId,
+                    UserId = userId,
+                    RoleId = roleRow.Id,
+                    ParticipantRole = kind,
+                    IsContact = kind == ParticipantRoleKind.Organizer
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+            return newEvent;
+        }
+        catch
         {
-            EventId = newEvent.Id,
-            UserId = newEvent.ResponsiblePersonId,
-            RoleId = organizatorEventRole.Id,
-            IsContact = true
-        };
-
-        await _context.EventRoles.AddAsync(eventOrganiztor);
-        _context.EventCategories.AddRange(eventCategories);
-        await _context.SaveChangesAsync();
-
-        return newEvent;
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<IEnumerable<Event>> GetAllEventsAsync()
@@ -111,9 +113,12 @@ public class EventRepository : IEventRepository
         return await _context.Events
             .Include(e => e.EventCategories)
             .ThenInclude(ec => ec.Category)
+            .Include(e => e.SelectedTypes)
             .Include(e => e.Photos)
             .Include(e => e.EventRoles)
             .ThenInclude(er => er.User)
+            .Include(e => e.EventRoles)
+            .ThenInclude(er => er.Role)
             .FirstOrDefaultAsync(e => e.Id == eventId);
     }
 
@@ -124,7 +129,9 @@ public class EventRepository : IEventRepository
 		// Фильтр по временному промежутку
 		if (request.Start != null && request.End != null)
 		{
-			query = query.Where(e => e.EndDate >= request.Start && e.StartDate <= request.End);
+			query = query.Where(e =>
+				(!e.EndDate.HasValue || e.EndDate >= request.Start) &&
+				e.StartDate <= request.End);
 		}
 
 		// Фильтр по имени
@@ -139,11 +146,10 @@ public class EventRepository : IEventRepository
 			query = query.Where(e => request.Organizators.Contains(e.ResponsiblePersonId));
 		}
 
-		// Фильтр по формату
-		if (!string.IsNullOrWhiteSpace(request.Format))
-		{
-			query = query.Where(e => e.Format == request.Format);
-		}
+		if (request.VenueFormat.HasValue)
+			query = query.Where(e => e.VenueFormat == request.VenueFormat.Value);
+		else if (!string.IsNullOrWhiteSpace(request.Format))
+			query = query.Where(e => e.VenueFormat == VenueFormatParser.Parse(request.Format));
 
 		// Фильтр по свободным местам
 		if (request.HasFreePlaces == true)
@@ -210,17 +216,28 @@ public class EventRepository : IEventRepository
             .Where(p => p.EventId == eventToDelete.Id)
             .ToListAsync();
 
-        var roleIds = eventRoles.Select(r => r.RoleId).ToList();
         var categoryIds = eventCategories.Select(ec => ec.CategoryId).ToList();
         
-        var avatarPath = eventToDelete.Avatar.TrimStart('/');
-        var avatarFullpath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", avatarPath);
-        if (File.Exists(avatarFullpath))
-            File.Delete(avatarFullpath);
+        if (!string.IsNullOrEmpty(eventToDelete.Avatar))
+        {
+            var avatarPath = eventToDelete.Avatar.TrimStart('/');
+            var avatarFullpath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", avatarPath);
+            if (File.Exists(avatarFullpath))
+                File.Delete(avatarFullpath);
+        }
 
+        var eventSelectedTypes = await _context.EventSelectedTypes
+            .Where(t => t.EventId == eventToDelete.Id)
+            .ToListAsync();
+        var rolesForEvent = await _context.Roles
+            .Where(r => r.EventId == eventToDelete.Id)
+            .ToListAsync();
+
+        _context.EventSelectedTypes.RemoveRange(eventSelectedTypes);
         _context.EventCategories.RemoveRange(eventCategories);
         _context.EventRoles.RemoveRange(eventRoles);
         _context.EventPhotos.RemoveRange(eventPhotos);
+        _context.Roles.RemoveRange(rolesForEvent);
         _context.Events.Remove(eventToDelete);
         await _context.SaveChangesAsync();
         
@@ -239,11 +256,6 @@ public class EventRepository : IEventRepository
             .Where(c => categoryIds.Contains(c.Id))
             .Where(c => !_context.EventCategories.Any(ec => ec.CategoryId == c.Id))
             .ToListAsync();
-        var unusedRoles = await _context.Roles
-            .Where(r => r.EventId == eventToDelete.Id)
-            .ToListAsync();
-
-        _context.Roles.RemoveRange(unusedRoles);
         _context.Categories.RemoveRange(unusedCategories);
         await _context.SaveChangesAsync();
     }
@@ -322,13 +334,14 @@ public class EventRepository : IEventRepository
     public async Task AddSuscriberAsync(Guid eventId, Guid userId)
     {
         var participantEventRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.Name == "Участник" && r.EventId == eventId);
+            .FirstOrDefaultAsync(r => r.Name == EventRoleTemplates.Observer && r.EventId == eventId);
 
         var newSuscriber = new EventRole
         {
             EventId = eventId,
             UserId = userId,
             RoleId = participantEventRole.Id,
+            ParticipantRole = ParticipantRoleKind.Observer
         };
 
         await _context.EventRoles.AddAsync(newSuscriber);
@@ -370,7 +383,8 @@ public class EventRepository : IEventRepository
         {
             EventId = eventId,
             UserId = userId,
-            RoleId = roleEntity.Id
+            RoleId = roleEntity.Id,
+            ParticipantRole = EventRoleTemplates.KindFromRoleName(roleEntity.Name)
         };
 
         await _context.EventRoles.AddAsync(newUserInRole);
@@ -497,6 +511,15 @@ public class EventRepository : IEventRepository
         return @event;
     }
 
+    public async Task ReplaceEventTypesAsync(Guid eventId, IReadOnlyList<EventTypeKind> types)
+    {
+        var existing = await _context.EventSelectedTypes.Where(x => x.EventId == eventId).ToListAsync();
+        _context.EventSelectedTypes.RemoveRange(existing);
+        foreach (var k in types.Distinct())
+            _context.EventSelectedTypes.Add(new EventSelectedType { EventId = eventId, TypeKind = k });
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<List<PhotoResponse>> GetEventPhotosAsync(Guid eventId, int count, int offset)
     {
         var results = await _context.EventPhotos
@@ -595,7 +618,7 @@ public class EventRepository : IEventRepository
         var role = await _context.Roles
             .FirstOrDefaultAsync(r => r.Id == roleId && r.EventId == eventId);
         var participantRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.EventId == eventId && r.Name == "Участник");
+            .FirstOrDefaultAsync(r => r.EventId == eventId && r.Name == EventRoleTemplates.Observer);
         var eventRoles = await _context.EventRoles
             .Where(er => er.EventId == eventId && er.RoleId == roleId)
             .ToListAsync();
@@ -607,7 +630,8 @@ public class EventRepository : IEventRepository
             {
                 EventId = er.EventId,
                 UserId = er.UserId,
-                RoleId = participantRole.Id,
+                RoleId = participantRole!.Id,
+                ParticipantRole = ParticipantRoleKind.Observer,
                 IsContact = false
             };
 

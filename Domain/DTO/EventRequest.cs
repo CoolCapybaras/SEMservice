@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using SEM.Domain.Models;
 
 namespace Domain.DTO;
 
@@ -10,21 +10,24 @@ public class EventRequest
 
     public DateTime StartDate { get; set; }
 
-    public DateTime EndDate { get; set; }
+    public DateTime? EndDate { get; set; }
 
-    public string Location { get; set; }
+    public string Location { get; set; } = null!;
 
-    public string Format { get; set; }
+    public string? Auditorium { get; set; }
 
-    public string EventType { get; set; }
+    public VenueFormat VenueFormat { get; set; }
+
+    /// <summary>Теги (как прежние категории): произвольные строки, many-to-many.</summary>
+    public List<string> Categories { get; set; } = new();
+
+    public List<EventTypeKind> Types { get; set; } = new();
+
+    public List<EventParticipantAssignmentDto> Participants { get; set; } = new();
 
     public Guid ResponsiblePersonId { get; set; }
 
     public int? MaxParticipants { get; set; }
 
-    public List<string> Categories { get; set; }
-    
-    public List<string> Roles { get; set; }
-    
-    public string Color { get; set; }
+    public string Color { get; set; } = null!;
 }

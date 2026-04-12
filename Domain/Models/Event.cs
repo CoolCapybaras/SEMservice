@@ -12,59 +12,70 @@ public class Event
     [Required]
     [StringLength(200)]
     public string? Name { get; set; }
-    
+
     public string? Avatar { get; set; }
 
+    [StringLength(4096)]
     public string? Description { get; set; }
 
     [Required]
-    public DateTime? StartDate { get; set; }
+    public DateTime StartDate { get; set; }
 
-    [Required]
     public DateTime? EndDate { get; set; }
 
     [Required]
     [StringLength(200)]
-    public string Location { get; set; }
+    public string Location { get; set; } = null!;
 
-    [Required]
-    [StringLength(50)]
-    public string Format { get; set; }
+    [StringLength(200)]
+    public string? Auditorium { get; set; }
 
-    [Required]
-    [StringLength(50)]
-    public string EventType { get; set; }
+    public VenueFormat VenueFormat { get; set; }
+
+    public EventLifecycleState LifecycleState { get; set; } = EventLifecycleState.Draft;
 
     public Guid ResponsiblePersonId { get; set; }
+
     [JsonIgnore]
-    public User ResponsiblePerson { get; set; }
+    public User ResponsiblePerson { get; set; } = null!;
 
     public int? MaxParticipants { get; set; }
 
     [JsonIgnore]
     [NotMapped]
-    public ICollection<User> Users { get; set; }
+    public ICollection<User> Users { get; set; } = new List<User>();
 
     [JsonIgnore]
-    public ICollection<EventCategory> EventCategories { get; set; }
-    
+    public ICollection<EventCategory> EventCategories { get; set; } = new List<EventCategory>();
+
+    [JsonIgnore]
+    public ICollection<EventSelectedType> SelectedTypes { get; set; } = new List<EventSelectedType>();
+
     [Required]
     [StringLength(7)]
-    public string Color { get; set; }
+    public string Color { get; set; } = null!;
 
     [JsonPropertyName("categories")]
-    public ICollection<string> CategoryNames => EventCategories?.Select(c => c.Category?.Name ?? string.Empty).ToList() 
-                                                ?? new List<string>();
-    
+    public ICollection<string> CategoryNames =>
+        EventCategories?.Select(c => c.Category?.Name ?? string.Empty).ToList()
+        ?? new List<string>();
+
+    [JsonPropertyName("eventTypes")]
+    public ICollection<EventTypeKind> EventTypeKinds =>
+        SelectedTypes?.Select(t => t.TypeKind).ToList() ?? new List<EventTypeKind>();
+
     [JsonIgnore]
-    public ICollection<EventRole> EventRoles { get; set; }
-    
+    public ICollection<EventRole> EventRoles { get; set; } = new List<EventRole>();
+
     [JsonIgnore]
-    public ICollection<EventPhoto> Photos { get; set; }
+    public ICollection<EventPhoto> Photos { get; set; } = new List<EventPhoto>();
 
     [NotMapped]
     [JsonPropertyName("previewPhotos")]
     public List<string> PreviewPhotos => Photos?.Take(4).Select(p => p.FilePath).ToList() ?? new();
-    
-    public string? status { get; set; } = "ACTIVE";
+
+    /// <summary>Устаревшее строковое поле статуса; оставлено для обратной совместимости сериализации до полного перехода клиентов.</summary>
+    [NotMapped]
+    [JsonPropertyName("status")]
+    public string? LegacyStatusDisplay => LifecycleState.ToString();
 }

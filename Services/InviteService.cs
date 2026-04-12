@@ -31,7 +31,7 @@ public class InviteService : IInviteService
         var user = await _profileRepository.GetByIdAsync(inviterUserId);
         if (user == null)
             return ServiceResult<Invites>.Fail("Пользователь не найден");
-        if (@event.status == "FINISHED")
+        if (@event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<Invites>.Fail("Мероприятие завершено");
         
         var invite = new Invites

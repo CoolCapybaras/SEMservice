@@ -250,7 +250,7 @@ public class EventController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetRoleById(Guid eventId, Guid roleId)
     {
-        var result = await _eventService.GetRoleByIdAsync(roleId, eventId);
+        var result = await _eventService.GetRoleByIdAsync(eventId, roleId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
     

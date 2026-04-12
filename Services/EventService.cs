@@ -29,6 +29,17 @@ public class EventService : IEventService
         {
             return ServiceResult<Event>.Fail("Недопустимый цвет мероприятия");
         }
+
+        if (request.Types == null || request.Types.Count == 0)
+            return ServiceResult<Event>.Fail("Укажите хотя бы один тип мероприятия");
+
+        if (!string.IsNullOrEmpty(request.Description) && request.Description.Length > 4096)
+            return ServiceResult<Event>.Fail("Описание не должно превышать 4096 символов");
+
+        request.Categories ??= new List<string>();
+        request.Participants ??= new List<EventParticipantAssignmentDto>();
+        request.ResponsiblePersonId = modId;
+
         var createdEvent = await _eventRepository.AddEventAsync(request);
         return ServiceResult<Event>.Ok(createdEvent);
     }
@@ -56,22 +67,23 @@ public class EventService : IEventService
         var response = new EventResponse
         {
             Id = _event.Id,
-            Name = _event.Name,
-            Description = _event.Description,
+            Name = _event.Name ?? string.Empty,
+            Description = _event.Description ?? string.Empty,
             StartDate = _event.StartDate,
             EndDate = _event.EndDate,
             Location = _event.Location,
-            Format = _event.Format,
-            EventType = _event.EventType,
+            Auditorium = _event.Auditorium,
+            VenueFormat = _event.VenueFormat,
+            Types = _event.SelectedTypes?.Select(t => t.TypeKind).ToList() ?? new List<EventTypeKind>(),
             ResponsiblePersonId = _event.ResponsiblePersonId,
             MaxParticipants = _event.MaxParticipants,
             Color = _event.Color,
-            Avatar = _event.Avatar,
+            Avatar = _event.Avatar ?? string.Empty,
             Categories = _event.EventCategories?.Select(ec => ec.Category.Name).ToList() ?? new List<string>(),
             PreviewPhotos = _event.Photos?.Select(p => p.FilePath).ToList() ?? new List<string>(),
             Participants = participants,
             ParticipantsCount = participants.Count,
-            status = _event.status
+            LifecycleState = _event.LifecycleState
         };
 
         return ServiceResult<EventResponse>.Ok(response);
@@ -145,7 +157,7 @@ public class EventService : IEventService
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено");
 
         await _eventRepository.AddSuscriberAsync(eventId, userId);
@@ -157,7 +169,7 @@ public class EventService : IEventService
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено");
 
         await _eventRepository.DeleteSuscriber(eventId, userId);
@@ -169,7 +181,7 @@ public class EventService : IEventService
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено");
         if (_event.ResponsiblePersonId != organizerId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
@@ -188,7 +200,7 @@ public class EventService : IEventService
 
         if (_event.ResponsiblePersonId != currentUserId)
             return ServiceResult<EventRole>.Fail("Вы не являетесь создателем мероприятия");
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<EventRole>.Fail("Мероприятие завершено");
 
         var role = await _eventRepository.GetRoleByIdAsync(eventId, roleId);
@@ -226,20 +238,24 @@ public class EventService : IEventService
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
         
-        if (@curEvent.status == "FINISHED")
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<Event>.Fail("Мероприятие завершено");
 
         curEvent.Name = request.Name ?? curEvent.Name;
         curEvent.Description = request.Description ?? curEvent.Description;
-        curEvent.StartDate = request.StartDate ?? curEvent.StartDate;
+        if (request.StartDate.HasValue)
+            curEvent.StartDate = request.StartDate.Value;
         curEvent.EndDate = request.EndDate ?? curEvent.EndDate;
         curEvent.Location = request.Location ?? curEvent.Location;
-        curEvent.Format = request.Format ?? curEvent.Format;
-        curEvent.EventType = request.EventType ?? curEvent.EventType;
+        curEvent.Auditorium = request.Auditorium ?? curEvent.Auditorium;
+        if (request.VenueFormat.HasValue)
+            curEvent.VenueFormat = request.VenueFormat.Value;
         curEvent.MaxParticipants = request.MaxParticipants ?? curEvent.MaxParticipants;
         curEvent.Color = request.Color ?? curEvent.Color;
 
         var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
+        if (request.Types != null)
+            await _eventRepository.ReplaceEventTypesAsync(eventId, request.Types);
         return ServiceResult<Event>.Ok(updatedEvent);
     }
 
@@ -262,7 +278,7 @@ public class EventService : IEventService
         if (file == null || file.Length == 0)
             return ServiceResult<string>.Fail("Файл не загружен");
         
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<string>.Fail("Мероприятие завершено");
 
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
@@ -291,7 +307,7 @@ public class EventService : IEventService
         if (curEvent.ResponsiblePersonId != currentUserId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено");
         await _eventRepository.AddContact(eventId, userId);
         return ServiceResult<bool>.Ok(true);
@@ -320,7 +336,7 @@ public class EventService : IEventService
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
         
-        curEvent.status = "FINISHED";
+        curEvent.LifecycleState = EventLifecycleState.Completed;
         var updatedEvent = await _eventRepository.FinishEventAsync(curEvent);
         return ServiceResult<Event>.Ok(updatedEvent);
     }
@@ -330,19 +346,11 @@ public class EventService : IEventService
         var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
         if (curEvent == null)
             return ServiceResult<Roles>.Fail("Мероприятие не найдено");
-
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<Roles>.Fail("Вы не являетесь создателем мероприятия");
-        if (curEvent.status == "FINISHED")
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<Roles>.Fail("Мероприятие завершено");
-        var role = new Roles
-        {
-            Id = Guid.NewGuid(),
-            Name = roleName,
-            EventId = eventId
-        };
-        await _eventRepository.CreateRoleAsync(role);
-        return ServiceResult<Roles>.Ok(role);
+        return ServiceResult<Roles>.Fail("Создание произвольных ролей отключено: у мероприятия только четыре фиксированные роли.");
     }
 
     public async Task<ServiceResult<Roles>> GetRoleByIdAsync(Guid eventId, Guid roleId)
@@ -361,15 +369,11 @@ public class EventService : IEventService
         var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
         if (curEvent == null)
             return ServiceResult<Roles>.Fail("Мероприятие не найдено");
-
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<Roles>.Fail("Вы не являетесь создателем мероприятия");
-        if (curEvent.status == "FINISHED")
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<Roles>.Fail("Мероприятие завершено");
-        var role = await _eventRepository.GetRoleByIdAsync(eventId, roleId); 
-        role.Name = newRoleName;
-        await _eventRepository.UpdateRoleAsync(role);
-        return ServiceResult<Roles>.Ok(role);
+        return ServiceResult<Roles>.Fail("Переименование ролей отключено: роли фиксированы.");
     }
 
     public async Task<ServiceResult<bool>> DeleteRoleAsync(Guid eventId, Guid roleId, Guid  userId)
@@ -380,11 +384,9 @@ public class EventService : IEventService
 
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
-        if (curEvent.status == "FINISHED")
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено");
-        
-        await _eventRepository.DeleteRoleAsync(eventId, roleId);
-        return ServiceResult<bool>.Ok(true);
+        return ServiceResult<bool>.Fail("Удаление системных ролей мероприятия не поддерживается.");
     }
 
     public async Task<ServiceResult<string>> GetEventPhotoByIdAsync(Guid eventId, Guid photoId)
@@ -419,7 +421,7 @@ public class EventService : IEventService
         if (curEvent.ResponsiblePersonId != currentUserId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
-        if (_event.status == "FINISHED")
+        if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<bool>.Fail("Мероприятие завершено");
         if (userId == curEvent.ResponsiblePersonId)
             return ServiceResult<bool>.Fail("Мероприятие не может остаться без создателя/организатора");
@@ -449,7 +451,7 @@ public class EventService : IEventService
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<string>.Fail("Вы не являетесь создателем мероприятия");
 
-        if (curEvent.status == "FINISHED")
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<string>.Fail("Мероприятие завершено");
 
         if (avatar == null || avatar.Length == 0)

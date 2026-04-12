@@ -25,13 +25,13 @@ public class EventPostService : IEventPostService
     public async Task<ServiceResult<EventPost>> AddPostAsync(Guid eventId, Guid authorId, string title, string text)
     {
         var @event = await _eventService.GetEventByIdAsync(eventId);
-        if (@event == null)
+        if (!@event.Success || @event.Data == null)
             return ServiceResult<EventPost>.Fail("Мероприятие не найдено");
 
         if (@event.Data.ResponsiblePersonId != authorId)
             return ServiceResult<EventPost>.Fail("Вы не являетесь владельцем мероприятия");
         
-        if (@event.Data.status == "FINISHED")
+        if (@event.Data.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<EventPost>.Fail("Мероприятие завершено");
 
         var post = new EventPost
@@ -125,7 +125,7 @@ public class EventPostService : IEventPostService
         if (@event.ResponsiblePersonId != authorId)
             return ServiceResult<EventPost>.Fail("Вы не являетесь владельцем мероприятия");
         
-        if (@event.status == "FINISHED")
+        if (@event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<EventPost>.Fail("Мероприятие завершено");
 
         var textChanged = post.Text != text;

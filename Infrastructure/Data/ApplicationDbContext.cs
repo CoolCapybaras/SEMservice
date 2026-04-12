@@ -15,6 +15,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Category> Categories { get; set; }
 
     public DbSet<EventCategory> EventCategories { get; set; }
+
+    public DbSet<EventSelectedType> EventSelectedTypes { get; set; }
     
     public DbSet<EventRole> EventRoles { get; set; }
     
@@ -60,6 +62,31 @@ public class ApplicationDbContext : DbContext
             .HasOne(ec => ec.Category)
             .WithMany(c => c.EventCategories)
             .HasForeignKey(ec => ec.CategoryId);
+
+        modelBuilder.Entity<EventSelectedType>()
+            .HasKey(x => new { x.EventId, x.TypeKind });
+
+        modelBuilder.Entity<EventSelectedType>()
+            .HasOne(x => x.Event)
+            .WithMany(e => e.SelectedTypes)
+            .HasForeignKey(x => x.EventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Event>()
+            .Property(e => e.VenueFormat)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<Event>()
+            .Property(e => e.LifecycleState)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<EventSelectedType>()
+            .Property(x => x.TypeKind)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<EventRole>()
+            .Property(er => er.ParticipantRole)
+            .HasConversion<int>();
         
         modelBuilder.Entity<EventRole>()
             .HasKey(ec => new { ec.EventId, ec.UserId, ec.RoleId });
