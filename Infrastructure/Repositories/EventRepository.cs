@@ -1,5 +1,4 @@
-﻿using System.Security.Claims;
-using Domain.DTO;
+﻿using Domain.DTO;
 using Microsoft.EntityFrameworkCore;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
@@ -53,18 +52,6 @@ public class EventRepository : IEventRepository
             foreach (var kind in request.Types.Distinct())
                 _context.EventSelectedTypes.Add(new EventSelectedType { EventId = eventId, TypeKind = kind });
 
-            var roleEntities = new Dictionary<ParticipantRoleKind, Roles>();
-            foreach (ParticipantRoleKind kind in Enum.GetValues<ParticipantRoleKind>())
-            {
-                roleEntities[kind] = new Roles
-                {
-                    Id = Guid.NewGuid(),
-                    Name = EventRoleTemplates.NameFor(kind),
-                    EventId = eventId
-                };
-            }
-
-            _context.Roles.AddRange(roleEntities.Values);
             await _context.SaveChangesAsync();
 
             var allCategories = existingCategories.Concat(newCategories).ToList();
@@ -81,14 +68,12 @@ public class EventRepository : IEventRepository
 
             foreach (var (userId, kind) in roleByUser)
             {
-                var roleRow = roleEntities[kind];
                 await _context.EventRoles.AddAsync(new EventRole
                 {
                     EventId = eventId,
                     UserId = userId,
-                    RoleId = roleRow.Id,
                     ParticipantRole = kind,
-                    IsContact = kind == ParticipantRoleKind.Organizer
+                    IsContact = kind == ParticipantRoleKind.Organizer && userId == request.ResponsiblePersonId
                 });
             }
 
@@ -117,8 +102,6 @@ public class EventRepository : IEventRepository
             .Include(e => e.Photos)
             .Include(e => e.EventRoles)
             .ThenInclude(er => er.User)
-            .Include(e => e.EventRoles)
-            .ThenInclude(er => er.Role)
             .FirstOrDefaultAsync(e => e.Id == eventId);
     }
 
@@ -229,15 +212,10 @@ public class EventRepository : IEventRepository
         var eventSelectedTypes = await _context.EventSelectedTypes
             .Where(t => t.EventId == eventToDelete.Id)
             .ToListAsync();
-        var rolesForEvent = await _context.Roles
-            .Where(r => r.EventId == eventToDelete.Id)
-            .ToListAsync();
-
         _context.EventSelectedTypes.RemoveRange(eventSelectedTypes);
         _context.EventCategories.RemoveRange(eventCategories);
         _context.EventRoles.RemoveRange(eventRoles);
         _context.EventPhotos.RemoveRange(eventPhotos);
-        _context.Roles.RemoveRange(rolesForEvent);
         _context.Events.Remove(eventToDelete);
         await _context.SaveChangesAsync();
         
@@ -333,14 +311,10 @@ public class EventRepository : IEventRepository
     
     public async Task AddSuscriberAsync(Guid eventId, Guid userId)
     {
-        var participantEventRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.Name == EventRoleTemplates.Observer && r.EventId == eventId);
-
         var newSuscriber = new EventRole
         {
             EventId = eventId,
             UserId = userId,
-            RoleId = participantEventRole.Id,
             ParticipantRole = ParticipantRoleKind.Observer
         };
 
@@ -366,49 +340,52 @@ public class EventRepository : IEventRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<EventRole> AddRoleToUser(Guid eventId, Guid userId, Guid roleId)
+    public async Task<EventRole> SetParticipantRoleForUser(Guid eventId, Guid userId, ParticipantRoleKind role)
     {
-        var roleEntity = await _context.Roles.FirstOrDefaultAsync(r => r.Id == roleId && r.EventId == eventId);
-        
-        var oldData = await _context.EventRoles.FirstOrDefaultAsync(er =>
+        var evt = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId)
+                  ?? throw new InvalidOperationException("Мероприятие не найдено");
+
+        var existing = await _context.EventRoles.FirstOrDefaultAsync(er =>
             er.EventId == eventId && er.UserId == userId);
 
-        if (oldData != null)
+        var isContact = role == ParticipantRoleKind.Organizer && userId == evt.ResponsiblePersonId;
+
+        if (existing != null)
         {
-            _context.EventRoles.Remove(oldData);
+            existing.ParticipantRole = role;
+            existing.IsContact = isContact;
             await _context.SaveChangesAsync();
+            return existing;
         }
 
-        var newUserInRole = new EventRole
+        var row = new EventRole
         {
             EventId = eventId,
             UserId = userId,
-            RoleId = roleEntity.Id,
-            ParticipantRole = EventRoleTemplates.KindFromRoleName(roleEntity.Name)
+            ParticipantRole = role,
+            IsContact = isContact
         };
-
-        await _context.EventRoles.AddAsync(newUserInRole);
+        _context.EventRoles.Add(row);
         await _context.SaveChangesAsync();
-
-        return newUserInRole;
+        return row;
     }
 
-    public async Task<List<Roles>> GetRolesByEvent(Guid eventId, int count, int offset)
+    public async Task<List<EventFixedRoleInfoDto>> GetFixedRolesForEventAsync(Guid eventId, int count, int offset)
     {
-        var res = new List<Roles>();
-        var roleInEvent = await _context.Roles.Where(r => r.EventId == eventId).Skip(offset)
-            .Take(count).ToListAsync();
-        foreach (var role in roleInEvent)
-        {
-            var roleName = new Roles
+        if (!await _context.Events.AnyAsync(e => e.Id == eventId))
+            return new List<EventFixedRoleInfoDto>();
+
+        var all = Enum.GetValues<ParticipantRoleKind>()
+            .Cast<ParticipantRoleKind>()
+            .Select(k => new EventFixedRoleInfoDto
             {
-                Id = role.Id,
-                Name = role.Name,
-                EventId = role.EventId,
-            };
-            res.Add(roleName);
-        }
-        return res;
+                Id = (int)k,
+                ParticipantRole = k,
+                Name = EventRoleTemplates.NameFor(k)
+            })
+            .ToList();
+
+        return await Task.FromResult(all.Skip(offset).Take(count).ToList());
     }
 
     public async Task<EventUserAndCountResponse> GetAllSuscribersAsync(Guid eventId, string? name, string? roleFil, int count, int offset)
@@ -433,10 +410,11 @@ public class EventRepository : IEventRepository
                     continue;
             }
             
-            Roles role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == userRole.RoleId);
+            var roleDisplay = EventRoleTemplates.NameFor(userRole.ParticipantRole);
             if (!string.IsNullOrWhiteSpace(roleFil))
             {
-                if (!role.Name.Equals(roleFil, StringComparison.OrdinalIgnoreCase))
+                if (!roleDisplay.Equals(roleFil, StringComparison.OrdinalIgnoreCase) &&
+                    !userRole.ParticipantRole.ToString().Equals(roleFil, StringComparison.OrdinalIgnoreCase))
                     continue;
             }
             EventUserResponse eventUser = new EventUserResponse
@@ -449,7 +427,7 @@ public class EventRepository : IEventRepository
                 Telegram = user.Telegram,
                 City = user.City,
                 AvatarUrl = user.AvatarUrl,
-                Role = role.Name,
+                Role = roleDisplay,
                 IsContact = userRole.IsContact,
             };
             usersRoles.Add(eventUser);
@@ -480,10 +458,11 @@ public class EventRepository : IEventRepository
                 if (!fullName.Contains(lowered))
                     continue;
             }
-            Roles role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == userRole.RoleId);
+            var roleDisplay = EventRoleTemplates.NameFor(userRole.ParticipantRole);
             if (!string.IsNullOrWhiteSpace(roleFil))
             {
-                if (!role.Name.Equals(roleFil, StringComparison.OrdinalIgnoreCase))
+                if (!roleDisplay.Equals(roleFil, StringComparison.OrdinalIgnoreCase) &&
+                    !userRole.ParticipantRole.ToString().Equals(roleFil, StringComparison.OrdinalIgnoreCase))
                     continue;
             }
             EventUserResponse eventUser = new EventUserResponse
@@ -496,7 +475,7 @@ public class EventRepository : IEventRepository
                 Telegram = user.Telegram,
                 City = user.City,
                 AvatarUrl = user.AvatarUrl,
-                Role = role.Name
+                Role = roleDisplay
             };
             usersRoles.Add(eventUser);
         }
@@ -560,7 +539,6 @@ public class EventRepository : IEventRepository
         var eventRoles = await _context.EventRoles
             .Where(u => u.EventId == eventId && u.IsContact == true)
             .Include(u => u.User)
-            .Include(u => u.Role)
             .ToListAsync();
         var contacts = new List<ContactResponse>();
         foreach (var userEventRole in eventRoles)
@@ -569,7 +547,7 @@ public class EventRepository : IEventRepository
             {
                 Name = $"{userEventRole.User.LastName} {userEventRole.User.FirstName}",
                 Profession = userEventRole.User.Profession,
-                Role = userEventRole.Role.Name,
+                Role = EventRoleTemplates.NameFor(userEventRole.ParticipantRole),
                 AvatarUrl = userEventRole.User.AvatarUrl
             };
             contacts.Add(user);
@@ -579,67 +557,12 @@ public class EventRepository : IEventRepository
         
     }
 
-    public async Task<Roles> GetRoleByName(string roleName)
-    {
-        return await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-    }
-
     public async Task<Event> FinishEventAsync(Event @event)
     {
         _context.Events.Update(@event);
         await _context.SaveChangesAsync();
         
         return @event;
-    }
-
-    public async Task<Roles> CreateRoleAsync(Roles role)
-    {
-        _context.Roles.Add(role);
-        await _context.SaveChangesAsync();
-        return role;
-    }
-
-    public async Task<Roles> GetRoleByIdAsync(Guid eventId, Guid roleId)
-    {
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Id == roleId && r.EventId == eventId);
-        return role;
-    }
-
-    public async Task<Roles> UpdateRoleAsync(Roles role)
-    {
-        _context.Roles.Update(role);
-        await _context.SaveChangesAsync();
-        
-        return role;
-    }
-
-    public async Task DeleteRoleAsync(Guid eventId, Guid roleId)
-    {
-        var role = await _context.Roles
-            .FirstOrDefaultAsync(r => r.Id == roleId && r.EventId == eventId);
-        var participantRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.EventId == eventId && r.Name == EventRoleTemplates.Observer);
-        var eventRoles = await _context.EventRoles
-            .Where(er => er.EventId == eventId && er.RoleId == roleId)
-            .ToListAsync();
-        foreach (var er in eventRoles)
-        {
-            _context.EventRoles.Remove(er);
-
-            var newEr = new EventRole
-            {
-                EventId = er.EventId,
-                UserId = er.UserId,
-                RoleId = participantRole!.Id,
-                ParticipantRole = ParticipantRoleKind.Observer,
-                IsContact = false
-            };
-
-            _context.EventRoles.Add(newEr);
-        }
-        
-        _context.Roles.Remove(role);
-        await _context.SaveChangesAsync();
     }
 
     public async Task<string> GetEventPhotoByIdAsync(Guid eventId, Guid photoId)

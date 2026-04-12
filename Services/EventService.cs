@@ -192,7 +192,8 @@ public class EventService : IEventService
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<EventRole>> AddRoleToUser(Guid eventId, Guid userId, Guid roleId, Guid currentUserId)
+    public async Task<ServiceResult<EventRole>> SetParticipantRoleForUserAsync(
+        Guid eventId, Guid userId, ParticipantRoleKind role, Guid currentUserId)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
@@ -203,18 +204,17 @@ public class EventService : IEventService
         if (_event.LifecycleState == EventLifecycleState.Completed)
             return ServiceResult<EventRole>.Fail("Мероприятие завершено");
 
-        var role = await _eventRepository.GetRoleByIdAsync(eventId, roleId);
-        if (role == null)
-            return ServiceResult<EventRole>.Fail("Роль не найдена");
+        if (role == ParticipantRoleKind.Organizer && userId != _event.ResponsiblePersonId)
+            return ServiceResult<EventRole>.Fail("Роль «Организатор» закреплена за владельцем мероприятия");
 
-        var addedRole = await _eventRepository.AddRoleToUser(eventId, userId, roleId);
-        return ServiceResult<EventRole>.Ok(addedRole);
+        var row = await _eventRepository.SetParticipantRoleForUser(eventId, userId, role);
+        return ServiceResult<EventRole>.Ok(row);
     }
 
-    public async Task<ServiceResult<List<Roles>>> GetRolesByEvent(Guid eventId, int count, int offset)
+    public async Task<ServiceResult<List<EventFixedRoleInfoDto>>> GetRolesByEvent(Guid eventId, int count, int offset)
     {
-        var roles = await _eventRepository.GetRolesByEvent(eventId, count, offset);
-        return ServiceResult<List<Roles>>.Ok(roles);
+        var roles = await _eventRepository.GetFixedRolesForEventAsync(eventId, count, offset);
+        return ServiceResult<List<EventFixedRoleInfoDto>>.Ok(roles);
     }
 
     public async Task<ServiceResult<EventUserAndCountResponse>> GetAllSuscribersAsync(Guid eventId, string? name, string? role, int count, int offset)
@@ -319,14 +319,6 @@ public class EventService : IEventService
         return ServiceResult<List<ContactResponse>>.Ok(contacts);
     }
 
-    public async Task<ServiceResult<Roles>> GetRoleByName(string roleName)
-    {
-        var role = await _eventRepository.GetRoleByName(roleName);
-        return role == null 
-            ? ServiceResult<Roles>.Fail("Роль не найдена") 
-            : ServiceResult<Roles>.Ok(role);
-    }
-
     public async Task<ServiceResult<Event>> FinishEventAsync(Guid eventId, Guid userId)
     {
         var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
@@ -339,54 +331,6 @@ public class EventService : IEventService
         curEvent.LifecycleState = EventLifecycleState.Completed;
         var updatedEvent = await _eventRepository.FinishEventAsync(curEvent);
         return ServiceResult<Event>.Ok(updatedEvent);
-    }
-
-    public async Task<ServiceResult<Roles>> CreateRoleAsync(string roleName, Guid eventId, Guid userId)
-    {
-        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
-        if (curEvent == null)
-            return ServiceResult<Roles>.Fail("Мероприятие не найдено");
-        if (curEvent.ResponsiblePersonId != userId)
-            return ServiceResult<Roles>.Fail("Вы не являетесь создателем мероприятия");
-        if (curEvent.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<Roles>.Fail("Мероприятие завершено");
-        return ServiceResult<Roles>.Fail("Создание произвольных ролей отключено: у мероприятия только четыре фиксированные роли.");
-    }
-
-    public async Task<ServiceResult<Roles>> GetRoleByIdAsync(Guid eventId, Guid roleId)
-    {
-        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
-        if (curEvent == null)
-            return ServiceResult<Roles>.Fail("Мероприятие не найдено");
-        var role = await _eventRepository.GetRoleByIdAsync(eventId, roleId);
-        if (role == null)
-            return ServiceResult<Roles>.Fail("Роль не найдена");
-        return ServiceResult<Roles>.Ok(role);
-    }
-
-    public async Task<ServiceResult<Roles>> UpdateRoleAsync(string newRoleName, Guid eventId, Guid roleId, Guid userId)
-    {
-        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
-        if (curEvent == null)
-            return ServiceResult<Roles>.Fail("Мероприятие не найдено");
-        if (curEvent.ResponsiblePersonId != userId)
-            return ServiceResult<Roles>.Fail("Вы не являетесь создателем мероприятия");
-        if (curEvent.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<Roles>.Fail("Мероприятие завершено");
-        return ServiceResult<Roles>.Fail("Переименование ролей отключено: роли фиксированы.");
-    }
-
-    public async Task<ServiceResult<bool>> DeleteRoleAsync(Guid eventId, Guid roleId, Guid  userId)
-    {
-        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
-        if (curEvent == null)
-            return ServiceResult<bool>.Fail("Мероприятие не найдено");
-
-        if (curEvent.ResponsiblePersonId != userId)
-            return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
-        if (curEvent.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<bool>.Fail("Мероприятие завершено");
-        return ServiceResult<bool>.Fail("Удаление системных ролей мероприятия не поддерживается.");
     }
 
     public async Task<ServiceResult<string>> GetEventPhotoByIdAsync(Guid eventId, Guid photoId)

@@ -1,6 +1,6 @@
 ﻿namespace SEM.Domain.Models;
 
-/// <summary>Имена четырёх фиксированных ролей в БД (таблица Roles) для каждого мероприятия.</summary>
+/// <summary>Отображаемые имени четырёх фиксированных ролей участника мероприятия.</summary>
 public static class EventRoleTemplates
 {
     public const string Organizer = "Организатор";

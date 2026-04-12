@@ -20,8 +20,6 @@ public class ApplicationDbContext : DbContext
     
     public DbSet<EventRole> EventRoles { get; set; }
     
-    public DbSet<Roles> Roles { get; set; }
-    
     public DbSet<EventPhoto> EventPhotos { get; set; }
     
     public DbSet<Notification> Notifications { get; set; }
@@ -89,7 +87,7 @@ public class ApplicationDbContext : DbContext
             .HasConversion<int>();
         
         modelBuilder.Entity<EventRole>()
-            .HasKey(ec => new { ec.EventId, ec.UserId, ec.RoleId });
+            .HasKey(er => new { er.EventId, er.UserId });
         
         modelBuilder.Entity<EventRole>()
             .HasOne(eur => eur.User)
@@ -100,10 +98,5 @@ public class ApplicationDbContext : DbContext
             .HasOne(eur => eur.Event)
             .WithMany(e => e.EventRoles)
             .HasForeignKey(eur => eur.EventId);
-
-        modelBuilder.Entity<EventRole>()
-            .HasOne(eur => eur.Role)
-            .WithMany(r => r.EventRoles)
-            .HasForeignKey(eur => eur.RoleId);
     }
 }

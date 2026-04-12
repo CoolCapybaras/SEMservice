@@ -115,14 +115,14 @@ public class EventController : ControllerBase
     }
 
     /// <summary>
-    /// Дать пользователю роль на мероприятии
+    /// Назначить пользователю фиксированную роль на мероприятии (организатор — только владелец мероприятия).
     /// </summary>
-    [HttpPost("{eventId}/users/{userId}/roles/{roleId}")]
+    [HttpPost("{eventId}/users/{userId}/roles")]
     [Authorize]
-    public async Task<IActionResult> AddRoleToUser(Guid eventId, Guid userId,Guid roleId)
+    public async Task<IActionResult> SetParticipantRole(Guid eventId, Guid userId, [FromBody] AssignParticipantRoleRequest request)
     {
         var currentUserId = GetUserIdFromToken();
-        var result = await _eventService.AddRoleToUser(eventId, userId, roleId, currentUserId);
+        var result = await _eventService.SetParticipantRoleForUserAsync(eventId, userId, request.ParticipantRole, currentUserId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
 
@@ -228,53 +228,6 @@ public class EventController : ControllerBase
     {
         var userId = GetUserIdFromToken();
         var result = await _eventService.FinishEventAsync(eventId, userId);
-        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
-    }
-    
-    /// <summary>
-    /// Создать роль в рамках мероприятия
-    /// </summary>
-    [HttpPost("{eventId}/roles")]
-    [Authorize]
-    public async Task<IActionResult> CreateRole(Guid eventId, string roleName)
-    {
-        var userId = GetUserIdFromToken();
-        var result = await _eventService.CreateRoleAsync(roleName, eventId, userId);
-        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
-    }
-    
-    /// <summary>
-    /// Получить роль по ID
-    /// </summary>
-    [HttpGet("{eventId}/roles/{roleId}")]
-    [Authorize]
-    public async Task<IActionResult> GetRoleById(Guid eventId, Guid roleId)
-    {
-        var result = await _eventService.GetRoleByIdAsync(eventId, roleId);
-        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
-    }
-    
-    /// <summary>
-    /// Изменить имя роли
-    /// </summary>
-    [HttpPut("{eventId}/roles/{roleId}")]
-    [Authorize]
-    public async Task<IActionResult> UpdateRole(string newRoleName, Guid eventId, Guid roleId)
-    {
-        var userId = GetUserIdFromToken();
-        var result = await _eventService.UpdateRoleAsync(newRoleName, eventId, roleId, userId);
-        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
-    }
-    
-    /// <summary>
-    /// Удалить роль
-    /// </summary>
-    [HttpDelete("{eventId}/roles/{roleId}")]
-    [Authorize]
-    public async Task<IActionResult> DeleteRole(Guid eventId, Guid roleId)
-    {
-        var userId = GetUserIdFromToken();
-        var result = await _eventService.DeleteRoleAsync(eventId, roleId, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
     

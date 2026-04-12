@@ -20,8 +20,8 @@ public interface IEventRepository
     Task AddSuscriberAsync(Guid eventId, Guid userId);
     Task DeleteSuscriber(Guid eventId, Guid userId);
     Task DeleteSuscriberByOrganizer(Guid eventId, Guid userId);
-    Task<EventRole> AddRoleToUser(Guid eventId, Guid userId, Guid roleId);
-    Task<List<Roles>> GetRolesByEvent(Guid eventId, int count, int offset);
+    Task<EventRole> SetParticipantRoleForUser(Guid eventId, Guid userId, ParticipantRoleKind role);
+    Task<List<EventFixedRoleInfoDto>> GetFixedRolesForEventAsync(Guid eventId, int count, int offset);
     Task<EventUserAndCountResponse> GetAllSuscribersAsync(Guid eventId, string? name, string? roleFil, int count, int offset);
     Task<List<EventUserResponse>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? roleFil);
     Task<Event> UpdateEventAsync(Event @event);
@@ -30,12 +30,7 @@ public interface IEventRepository
     Task AddEventPhotoAsync(EventPhoto photo);
     Task AddContact(Guid eventId, Guid userId);
     Task<List<ContactResponse>> GetContacts(Guid eventId);
-    Task<Roles> GetRoleByName(string roleName);
     Task<Event> FinishEventAsync(Event @event);
-    Task<Roles> CreateRoleAsync(Roles role);
-    Task<Roles> GetRoleByIdAsync(Guid eventId, Guid roleId);
-    Task<Roles> UpdateRoleAsync(Roles role);
-    Task DeleteRoleAsync(Guid eventId, Guid roleId);
     Task<string> GetEventPhotoByIdAsync(Guid eventId, Guid photoId);
     Task DeleteEventPhotoAsync(Guid eventId, Guid photoId);
     Task DeleteContact(Guid eventId, Guid userId);

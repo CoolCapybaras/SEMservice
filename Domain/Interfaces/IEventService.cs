@@ -17,8 +17,8 @@ public interface IEventService
     Task<ServiceResult<bool>> AddSuscriberAsync(Guid eventId, Guid userId);
     Task<ServiceResult<bool>> DeleteSuscriber(Guid eventId, Guid userId);
     Task<ServiceResult<bool>> DeleteByOrganizerSuscriber(Guid eventId, Guid userId, Guid organizerId);
-    Task<ServiceResult<EventRole>> AddRoleToUser(Guid eventId, Guid userId, Guid roleId, Guid currentUserId);
-    Task<ServiceResult<List<Roles>>> GetRolesByEvent(Guid eventId, int count, int offset);
+    Task<ServiceResult<EventRole>> SetParticipantRoleForUserAsync(Guid eventId, Guid userId, ParticipantRoleKind role, Guid currentUserId);
+    Task<ServiceResult<List<EventFixedRoleInfoDto>>> GetRolesByEvent(Guid eventId, int count, int offset);
     Task<ServiceResult<EventUserAndCountResponse>> GetAllSuscribersAsync(Guid eventId, string? name, string? role, int count, int offset);
     Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? role);
     Task<ServiceResult<Event>> UpdateEventAsync(Guid eventId, EventUpdateRequest request, Guid userId);
@@ -28,12 +28,7 @@ public interface IEventService
     Task<ServiceResult<List<ContactResponse>>> GetContacts(Guid eventId);
     Task<ServiceResult<EventCategory>> AddCategoryToEventAsync(Guid eventId, string categoryName, Guid userId);
     Task<ServiceResult<bool>> DeleteCategoryInEventAsync(Guid eventId, Guid categoryId, Guid userId);
-    Task<ServiceResult<Roles>> GetRoleByName(string roleName);
     Task<ServiceResult<Event>> FinishEventAsync(Guid Eventid, Guid userId);
-    Task<ServiceResult<Roles>> CreateRoleAsync(string roleName, Guid eventId, Guid userId);
-    Task<ServiceResult<Roles>> GetRoleByIdAsync(Guid eventId, Guid roleId);
-    Task<ServiceResult<Roles>> UpdateRoleAsync(string newRoleName, Guid eventId, Guid roleId, Guid userId);
-    Task<ServiceResult<bool>> DeleteRoleAsync(Guid eventId, Guid roleId, Guid userId);
     Task<ServiceResult<string>> GetEventPhotoByIdAsync(Guid eventId, Guid photoId);
     Task<ServiceResult<bool>> DeleteEventPhotoAsync(Guid eventId, Guid photoId, Guid userId);
     Task<ServiceResult<bool>> DeleteContact(Guid eventId, Guid userId, Guid currentUserId);
