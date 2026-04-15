@@ -37,9 +37,8 @@ public enum EventTypeKind
 {
     Hackathon,
     Lecture,
-    Webinar,
-    UrFU,
     PP,
     SpecialCourse,
-    Practice
+    Practice,
+    CareerEvent
 }
