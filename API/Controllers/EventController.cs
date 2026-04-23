@@ -161,6 +161,18 @@ public class EventController : ControllerBase
     }
     
     /// <summary>
+    /// Обновить статус мероприятия
+    /// </summary>
+    [HttpPatch("{eventId}/lifecycle-state")]
+    [Authorize]
+    public async Task<IActionResult> UpdateEventLifecycleState(Guid eventId, [FromBody] EventLifecycleUpdateRequest request)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.UpdateEventLifecycleStateAsync(eventId, request, userId);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
     /// Получить фотографии в рамках мероприятия
     /// </summary>
     [HttpGet("{eventId}/photos")]

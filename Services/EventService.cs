@@ -206,6 +206,9 @@ public class EventService : IEventService
 
         if (role == ParticipantRoleKind.Organizer && userId != _event.ResponsiblePersonId)
             return ServiceResult<EventRole>.Fail("Роль «Организатор» закреплена за владельцем мероприятия");
+        var subscribers = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(eventId, null, null);
+        if (userId != _event.ResponsiblePersonId && !subscribers.Any(u => u.id == userId))
+            return ServiceResult<EventRole>.Fail("Нельзя назначить роль пользователю, который не является участником мероприятия");
 
         var row = await _eventRepository.SetParticipantRoleForUser(eventId, userId, role);
         return ServiceResult<EventRole>.Ok(row);
@@ -268,6 +271,21 @@ public class EventService : IEventService
         var photos = await _eventRepository.GetEventPhotosAsync(eventId, offset, count);
         return ServiceResult<List<PhotoResponse>>.Ok(photos);
     }
+    
+    public async Task<ServiceResult<Event>> UpdateEventLifecycleStateAsync(Guid eventId, EventLifecycleUpdateRequest request, Guid userId)
+    {
+        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
+        if (curEvent == null)
+            return ServiceResult<Event>.Fail("Мероприятие не найдено");
+
+        if (curEvent.ResponsiblePersonId != userId)
+            return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
+
+        curEvent.LifecycleState = request.LifecycleState;
+        var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
+        return ServiceResult<Event>.Ok(updatedEvent);
+    }
+
     
     public async Task<ServiceResult<string>> AddEventPhotoAsync(Guid eventId, IFormFile file)
     {
