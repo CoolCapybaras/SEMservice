@@ -1,4 +1,5 @@
-﻿using Domain.Interfaces;
+﻿using Domain.DTO;
+using Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using SEM.Domain.Models;
 using SEM.Infrastructure.Data;
@@ -64,5 +65,32 @@ public class BoardTaskRepository: IBoardTaskRepository
         _context.BoardTasks.Update(movedTask);
 
         await _context.SaveChangesAsync();
+    }
+    
+    public async Task<List<BoardTask>> GetCurrentUserTasksAsync(Guid userId)
+    {
+        return await _context.BoardTasks
+            .Where(t => t.AssignedUserId == userId)
+            .Include(t => t.Column)
+            .ThenInclude(c => c.Event)
+            .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+            .ThenByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+    
+    public async Task<List<BoardTask>> GetCurrentUserTasksByEventAsync(Guid userId, Guid eventId)
+    {
+        return await _context.BoardTasks
+            .Where(t => t.AssignedUserId == userId && t.Column.EventId == eventId)
+            .Include(t => t.Column)
+            .ThenInclude(c => c.Event)
+            .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+            .ThenByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+
+    public Task<List<BoardTasksResponse>> GetCurrentUserTasksAsync(Guid userId, Guid eventId)
+    {
+        throw new NotImplementedException();
     }
 }

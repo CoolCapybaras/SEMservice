@@ -33,6 +33,10 @@ public class EventResponse
     public List<string> PreviewPhotos { get; set; } = new();
 
     public EventLifecycleState LifecycleState { get; set; }
+    
+    public bool IsCancelled { get; set; }
+    
+    public int BufferDays { get; set; }
 
     public List<UserResponse> Participants { get; set; } = new();
 

@@ -19,6 +19,8 @@ public static class ServicesStartUp
         services.AddScoped<IBoardTaskService, BoardTaskService>();
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IEventAttachmentService, EventAttachmentService>();
+        services.AddScoped<IEventNoteService, EventNoteService>();
 
         return services;
     }

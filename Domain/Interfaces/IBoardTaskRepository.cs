@@ -1,4 +1,5 @@
-﻿using SEM.Domain.Models;
+﻿using Domain.DTO;
+using SEM.Domain.Models;
 
 namespace Domain.Interfaces;
 
@@ -14,4 +15,7 @@ public interface IBoardTaskRepository
         List<BoardTask> oldColumnTasks,
         List<BoardTask> newColumnTasks,
         BoardTask movedTask);
+    
+    Task<List<BoardTask>> GetCurrentUserTasksAsync(Guid userId);
+    Task<List<BoardTask>> GetCurrentUserTasksByEventAsync(Guid userId, Guid eventId);
 }

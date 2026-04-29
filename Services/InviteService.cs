@@ -63,7 +63,7 @@ public class InviteService : IInviteService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _notificationService.AddNotificationAsync(notification);
+        await _notificationService.AddNotificationIfEnabledAsync(notification);
 
         return ServiceResult<Invites>.Ok(invite);
     }

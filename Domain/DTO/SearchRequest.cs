@@ -16,6 +16,7 @@ public class SearchRequest
     public string? Format { get; set; }
     public bool? HasFreePlaces { get; set; }
     public List<string>? Categories { get; set; }
+    public List<EventTypeKind>? Types { get; set; }
     public int Offset { get; set; }
     public int Count { get; set; }
 }

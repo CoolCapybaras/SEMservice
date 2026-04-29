@@ -30,4 +30,6 @@ public class EventRequest
     public int? MaxParticipants { get; set; }
 
     public string Color { get; set; } = null!;
+    
+    public int? BufferDays { get; set; }
 }

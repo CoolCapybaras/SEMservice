@@ -33,6 +33,17 @@ public class Event
     public VenueFormat VenueFormat { get; set; }
 
     public EventLifecycleState LifecycleState { get; set; } = EventLifecycleState.Draft;
+    
+    public bool IsCancelled { get; set; }
+    
+    public DateTime? CancelledAt { get; set; }
+    
+    /// <summary>Длина переходного буфера в днях после завершения (1-21).</summary>
+    public int BufferDays { get; set; } = 14;
+
+    public DateTime? EventStart24hNotificationSentAt { get; set; }
+    public DateTime? EventStart1hNotificationSentAt { get; set; }
+    public DateTime? BufferEnding3dNotificationSentAt { get; set; }
 
     public Guid ResponsiblePersonId { get; set; }
 
@@ -69,6 +80,12 @@ public class Event
 
     [JsonIgnore]
     public ICollection<EventPhoto> Photos { get; set; } = new List<EventPhoto>();
+
+    [JsonIgnore]
+    public ICollection<EventAttachment> Attachments { get; set; } = new List<EventAttachment>();
+    
+    [JsonIgnore]
+    public ICollection<EventNote> Notes { get; set; } = new List<EventNote>();
 
     [NotMapped]
     [JsonPropertyName("previewPhotos")]

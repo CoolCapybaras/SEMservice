@@ -11,4 +11,6 @@ public class EventRole
     public ParticipantRoleKind ParticipantRole { get; set; }
 
     public bool IsContact { get; set; }
+
+    public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 }

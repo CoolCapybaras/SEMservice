@@ -13,5 +13,10 @@ public class UserProfileResponse
     public string UserPrivilege { get; set; }
         
     public string? AvatarUrl { get; set; }
+    public string Theme { get; set; } = string.Empty;
+    public string NotificationChannel { get; set; } = string.Empty;
+    public bool NotifyTaskAssigned { get; set; }
+    public bool NotifyTaskDeadline { get; set; }
+    public bool NotifyEventStart { get; set; }
+    public bool NotifyEventCancelled { get; set; }
 }
-

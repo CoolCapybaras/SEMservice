@@ -31,6 +31,15 @@ public class User
     public string? ResetToken { get; set; }
     
     public string? AvatarUrl { get; set; }
+    
+    public UiTheme Theme { get; set; } = UiTheme.Light;
+    
+    public NotificationChannel NotificationChannel { get; set; } = NotificationChannel.None;
+    
+    public bool NotifyTaskAssigned { get; set; } = true;
+    public bool NotifyTaskDeadline { get; set; } = true;
+    public bool NotifyEventStart { get; set; } = true;
+    public bool NotifyEventCancelled { get; set; } = true;
 
     public UserPrivilege UserPrivilege { get; set; } = UserPrivilege.COMMON;
     
@@ -43,4 +52,18 @@ public enum UserPrivilege
     COMMON,
     ORGANIZER,
     ADMIN
+}
+
+public enum UiTheme
+{
+    Light,
+    Dark
+}
+
+public enum NotificationChannel
+{
+    None,
+    Telegram,
+    Vk,
+    Email
 }

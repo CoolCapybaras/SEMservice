@@ -12,4 +12,5 @@ public class EventUserResponse
     public string AvatarUrl { get; set; }
     public string Role { get; set; }
     public bool IsContact {get; set;}
+    public DateTime AddedAt { get; set; }
 }

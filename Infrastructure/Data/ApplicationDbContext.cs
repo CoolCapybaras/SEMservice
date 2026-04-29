@@ -33,6 +33,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<BoardColumn> BoardColumn { get; set; }
     
     public DbSet<BoardTask> BoardTasks { get; set; }
+    
+    public DbSet<BoardTaskComment> BoardTaskComments { get; set; }
+    
+    public DbSet<BoardTaskHistory> BoardTaskHistories { get; set; }
+    
+    public DbSet<EventAttachment> EventAttachments { get; set; }
+    
+    public DbSet<EventNote> EventNotes { get; set; }
 
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
@@ -98,5 +106,59 @@ public class ApplicationDbContext : DbContext
             .HasOne(eur => eur.Event)
             .WithMany(e => e.EventRoles)
             .HasForeignKey(eur => eur.EventId);
+        
+        modelBuilder.Entity<User>()
+            .Property(u => u.Theme)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.NotificationChannel)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<BoardTaskComment>()
+            .HasOne(c => c.Task)
+            .WithMany(t => t.Comments)
+            .HasForeignKey(c => c.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BoardTaskComment>()
+            .HasOne(c => c.Author)
+            .WithMany()
+            .HasForeignKey(c => c.AuthorId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BoardTaskHistory>()
+            .HasOne(h => h.Task)
+            .WithMany()
+            .HasForeignKey(h => h.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EventAttachment>()
+            .Property(a => a.Kind)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<EventAttachment>()
+            .HasOne(a => a.Event)
+            .WithMany(e => e.Attachments)
+            .HasForeignKey(a => a.EventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EventAttachment>()
+            .HasOne(a => a.Author)
+            .WithMany()
+            .HasForeignKey(a => a.AuthorId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EventNote>()
+            .HasOne(n => n.Event)
+            .WithMany(e => e.Notes)
+            .HasForeignKey(n => n.EventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EventNote>()
+            .HasOne(n => n.Author)
+            .WithMany()
+            .HasForeignKey(n => n.AuthorId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

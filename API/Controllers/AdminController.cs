@@ -86,7 +86,13 @@ public class AdminController: ControllerBase
             Telegram = model.Telegram,
             City = model.City,
             UserPrivilege = model.UserPrivilege.ToString(),
-            AvatarUrl = model.AvatarUrl
+            AvatarUrl = model.AvatarUrl,
+            Theme = model.Theme.ToString(),
+            NotificationChannel = model.NotificationChannel.ToString(),
+            NotifyTaskAssigned = model.NotifyTaskAssigned,
+            NotifyTaskDeadline = model.NotifyTaskDeadline,
+            NotifyEventStart = model.NotifyEventStart,
+            NotifyEventCancelled = model.NotifyEventCancelled
         };
     }
     

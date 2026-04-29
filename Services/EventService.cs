@@ -1,5 +1,6 @@
 ﻿using Domain;
 using Domain.DTO;
+using Domain.Interfaces;
 using Microsoft.AspNetCore.Http;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
@@ -10,12 +11,16 @@ public class EventService : IEventService
 {
     private readonly IEventRepository _eventRepository;
     private readonly IUserProfileRepository _userProfileRepository;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly INotificationService _notificationService;
 
-    public EventService(IEventRepository eventRepository, IUserProfileRepository userProfileRepository)
+    public EventService(
+        IEventRepository eventRepository,
+        IUserProfileRepository userProfileRepository,
+        INotificationService notificationService)
     {
         _eventRepository = eventRepository;
         _userProfileRepository = userProfileRepository;
+        _notificationService = notificationService;
     }
 
     public async Task<ServiceResult<Event>> CreateEventAsync(EventRequest request, Guid modId)
@@ -39,6 +44,10 @@ public class EventService : IEventService
         request.Categories ??= new List<string>();
         request.Participants ??= new List<EventParticipantAssignmentDto>();
         request.ResponsiblePersonId = modId;
+        var bufferDays = request.BufferDays ?? 14;
+        if (bufferDays is < 7 or > 21)
+            return ServiceResult<Event>.Fail("Переходный буфер должен быть от 7 до 21 дней");
+        request.BufferDays = bufferDays;
 
         var createdEvent = await _eventRepository.AddEventAsync(request);
         return ServiceResult<Event>.Ok(createdEvent);
@@ -84,6 +93,8 @@ public class EventService : IEventService
             Participants = participants,
             ParticipantsCount = participants.Count,
             LifecycleState = _event.LifecycleState
+            ,IsCancelled = _event.IsCancelled
+            ,BufferDays = _event.BufferDays
         };
 
         return ServiceResult<EventResponse>.Ok(response);
@@ -93,6 +104,19 @@ public class EventService : IEventService
     {
         var events = await _eventRepository.SearchEventsAsync(request);
         return ServiceResult<List<Event>>.Ok(events);
+    }
+
+    public async Task<ServiceResult<List<Event>>> SearchArchivedEventsAsync(SearchRequest request, Guid userId)
+    {
+        var events = await _eventRepository.SearchArchivedEventsAsync(request, userId);
+        var visible = events.Where(e =>
+        {
+            if (e.ResponsiblePersonId == userId)
+                return true;
+            var role = e.EventRoles.FirstOrDefault(r => r.UserId == userId)?.ParticipantRole;
+            return role == ParticipantRoleKind.Editor || role == ParticipantRoleKind.Organizer;
+        }).ToList();
+        return ServiceResult<List<Event>>.Ok(visible);
     }
 
     public async Task<ServiceResult<List<CategoryResponse>>> GetEventCategoriesAsync(Guid eventId)
@@ -147,6 +171,8 @@ public class EventService : IEventService
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
         if (_event.ResponsiblePersonId != userId)
             return ServiceResult<bool>.Fail("Вы не являетесь владельцем мероприятия");
+        if (!CanDeleteEvent(_event))
+            return ServiceResult<bool>.Fail("Удаление доступно только для мероприятий до даты начала и не в архиве");
 
         await _eventRepository.DeleteEventAndUnusedCategoriesAsync(_event);
         return ServiceResult<bool>.Ok(true);
@@ -157,20 +183,45 @@ public class EventService : IEventService
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
-        if (_event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<bool>.Fail("Мероприятие завершено");
+        if (!CanModifyParticipants(_event))
+            return ServiceResult<bool>.Fail("Изменение состава участников недоступно после начала мероприятия");
 
         await _eventRepository.AddSuscriberAsync(eventId, userId);
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> DeleteSuscriber(Guid eventId, Guid userId)
+    public async Task<ServiceResult<bool>> DeleteSuscriber(Guid eventId, Guid userId, Guid? transferToUserId = null)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
-        if (_event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<bool>.Fail("Мероприятие завершено");
+        if (!CanModifyParticipants(_event))
+            return ServiceResult<bool>.Fail("Изменение состава участников недоступно после начала мероприятия");
+
+        if (_event.ResponsiblePersonId == userId)
+        {
+            var editors = _event.EventRoles
+                .Where(r => r.UserId != userId && r.ParticipantRole == ParticipantRoleKind.Editor)
+                .Select(r => r.UserId)
+                .Distinct()
+                .ToList();
+
+            if (editors.Count == 0)
+                return ServiceResult<bool>.Fail("Организатор не может выйти: в мероприятии нет редакторов для передачи роли");
+
+            if (!transferToUserId.HasValue)
+                return ServiceResult<bool>.Fail("Для выхода организатора передайте transferToUserId (id редактора)");
+
+            if (transferToUserId.Value == userId)
+                return ServiceResult<bool>.Fail("Нельзя передать роль организатора самому себе");
+
+            if (!editors.Contains(transferToUserId.Value))
+                return ServiceResult<bool>.Fail("Передать роль организатора можно только участнику с ролью Editor");
+
+            _event.ResponsiblePersonId = transferToUserId.Value;
+            await _eventRepository.UpdateEventAsync(_event);
+            await _eventRepository.SetParticipantRoleForUser(eventId, transferToUserId.Value, ParticipantRoleKind.Organizer);
+        }
 
         await _eventRepository.DeleteSuscriber(eventId, userId);
         return ServiceResult<bool>.Ok(true);
@@ -181,8 +232,8 @@ public class EventService : IEventService
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
-        if (_event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<bool>.Fail("Мероприятие завершено");
+        if (!CanModifyParticipants(_event))
+            return ServiceResult<bool>.Fail("Изменение состава участников недоступно после начала мероприятия");
         if (_event.ResponsiblePersonId != organizerId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
         if (userId == organizerId)
@@ -201,11 +252,12 @@ public class EventService : IEventService
 
         if (_event.ResponsiblePersonId != currentUserId)
             return ServiceResult<EventRole>.Fail("Вы не являетесь создателем мероприятия");
-        if (_event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<EventRole>.Fail("Мероприятие завершено");
+        if (!CanModifyParticipants(_event))
+            return ServiceResult<EventRole>.Fail("Изменение состава участников недоступно после начала мероприятия");
 
         if (role == ParticipantRoleKind.Organizer && userId != _event.ResponsiblePersonId)
             return ServiceResult<EventRole>.Fail("Роль «Организатор» закреплена за владельцем мероприятия");
+
         var subscribers = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(eventId, null, null);
         if (userId != _event.ResponsiblePersonId && !subscribers.Any(u => u.id == userId))
             return ServiceResult<EventRole>.Fail("Нельзя назначить роль пользователю, который не является участником мероприятия");
@@ -241,7 +293,7 @@ public class EventService : IEventService
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
         
-        if (curEvent.LifecycleState == EventLifecycleState.Completed)
+        if (curEvent.LifecycleState is EventLifecycleState.Completed or EventLifecycleState.Archived)
             return ServiceResult<Event>.Fail("Мероприятие завершено");
 
         curEvent.Name = request.Name ?? curEvent.Name;
@@ -262,6 +314,53 @@ public class EventService : IEventService
         return ServiceResult<Event>.Ok(updatedEvent);
     }
 
+    public async Task<ServiceResult<Event>> UpdateEventLifecycleStateAsync(Guid eventId, EventLifecycleUpdateRequest request, Guid userId)
+    {
+        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
+        if (curEvent == null)
+            return ServiceResult<Event>.Fail("Мероприятие не найдено");
+
+        if (curEvent.ResponsiblePersonId != userId)
+            return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
+
+        var validationError = ValidateLifecycleTransition(curEvent, request.LifecycleState);
+        if (validationError != null)
+            return ServiceResult<Event>.Fail(validationError);
+
+        var previousState = curEvent.LifecycleState;
+        curEvent.LifecycleState = request.LifecycleState;
+        if (request.LifecycleState != EventLifecycleState.Cancelled)
+            curEvent.IsCancelled = false;
+        var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
+
+        if (previousState != EventLifecycleState.Published && request.LifecycleState == EventLifecycleState.Published)
+        {
+            await NotifyEventPublishedAsync(updatedEvent);
+        }
+        return ServiceResult<Event>.Ok(updatedEvent);
+    }
+
+    public async Task<ServiceResult<Event>> SetEventCancellationAsync(Guid eventId, EventCancellationRequest request, Guid userId)
+    {
+        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
+        if (curEvent == null)
+            return ServiceResult<Event>.Fail("Мероприятие не найдено");
+        if (curEvent.ResponsiblePersonId != userId)
+            return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
+        if (curEvent.LifecycleState != EventLifecycleState.Published)
+            return ServiceResult<Event>.Fail("Отмена доступна только для мероприятия в статусе Published");
+
+        curEvent.IsCancelled = request.IsCancelled;
+        curEvent.CancelledAt = request.IsCancelled ? DateTime.UtcNow : null;
+        curEvent.LifecycleState = request.IsCancelled ? EventLifecycleState.Cancelled : EventLifecycleState.Published;
+        var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
+
+        if (request.IsCancelled)
+            await NotifyEventCancelledAsync(curEvent);
+
+        return ServiceResult<Event>.Ok(updatedEvent);
+    }
+
     public async Task<ServiceResult<List<PhotoResponse>>> GetEventPhotosAsync(Guid eventId, int count, int offset)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
@@ -272,21 +371,6 @@ public class EventService : IEventService
         return ServiceResult<List<PhotoResponse>>.Ok(photos);
     }
     
-    public async Task<ServiceResult<Event>> UpdateEventLifecycleStateAsync(Guid eventId, EventLifecycleUpdateRequest request, Guid userId)
-    {
-        var curEvent = await _eventRepository.GetEventByIdAsync(eventId);
-        if (curEvent == null)
-            return ServiceResult<Event>.Fail("Мероприятие не найдено");
-
-        if (curEvent.ResponsiblePersonId != userId)
-            return ServiceResult<Event>.Fail("Вы не являетесь создателем мероприятия");
-
-        curEvent.LifecycleState = request.LifecycleState;
-        var updatedEvent = await _eventRepository.UpdateEventAsync(curEvent);
-        return ServiceResult<Event>.Ok(updatedEvent);
-    }
-
-    
     public async Task<ServiceResult<string>> AddEventPhotoAsync(Guid eventId, IFormFile file)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
@@ -295,9 +379,9 @@ public class EventService : IEventService
 
         if (file == null || file.Length == 0)
             return ServiceResult<string>.Fail("Файл не загружен");
-        
-        if (_event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<string>.Fail("Мероприятие завершено");
+
+        if (!CanUploadEventMedia(_event))
+            return ServiceResult<string>.Fail("Загрузка медиа доступна только после начала и до архивации мероприятия");
 
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
         Directory.CreateDirectory(uploadsFolder);
@@ -370,6 +454,10 @@ public class EventService : IEventService
 
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
+        if (curEvent.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<bool>.Fail("Мероприятие в архиве");
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
+            return ServiceResult<bool>.Fail("В переходном буфере удалять медиа может только организатор");
         await _eventRepository.DeleteEventPhotoAsync(eventId, photoId);
         return ServiceResult<bool>.Ok(true);
     }
@@ -399,9 +487,34 @@ public class EventService : IEventService
 
         if (curEvent.ResponsiblePersonId != userId)
             return ServiceResult<bool>.Fail("Вы не являетесь создателем мероприятия");
+        if (curEvent.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<bool>.Fail("Мероприятие в архиве");
+        if (curEvent.LifecycleState == EventLifecycleState.Completed)
+            return ServiceResult<bool>.Fail("В переходном буфере удалять медиа может только организатор");
 
         await _eventRepository.DeleteEventPhotosAsync(eventId, photoIds);
         return ServiceResult<bool>.Ok(true);
+    }
+
+    public async Task<ServiceResult<Event>> CopyArchivedEventAsTemplateAsync(Guid sourceEventId, Guid userId, string? name)
+    {
+        var user = await _userProfileRepository.GetByIdAsync(userId);
+        if (user == null || user.UserPrivilege == UserPrivilege.COMMON)
+            return ServiceResult<Event>.Fail("Недостаточно прав для копирования архивного мероприятия");
+
+        var source = await _eventRepository.GetEventByIdAsync(sourceEventId);
+        if (source == null)
+            return ServiceResult<Event>.Fail("Исходное мероприятие не найдено");
+        if (source.LifecycleState != EventLifecycleState.Archived)
+            return ServiceResult<Event>.Fail("Копирование как шаблон доступно только для архивного мероприятия");
+
+        var isParticipant = source.ResponsiblePersonId == userId || source.EventRoles.Any(r => r.UserId == userId);
+        var role = source.EventRoles.FirstOrDefault(r => r.UserId == userId)?.ParticipantRole;
+        if (!isParticipant || (role != null && role is ParticipantRoleKind.Assistant or ParticipantRoleKind.Observer))
+            return ServiceResult<Event>.Fail("Недостаточно прав для доступа к архиву мероприятия");
+
+        var copied = await _eventRepository.CloneArchivedEventAsTemplateAsync(source, userId, string.IsNullOrWhiteSpace(name) ? $"{source.Name} (копия)" : name.Trim());
+        return ServiceResult<Event>.Ok(copied);
     }
     
     public async Task<ServiceResult<string>> UploadEventAvatarAsync(Guid eventId, IFormFile avatar, Guid userId)
@@ -443,5 +556,98 @@ public class EventService : IEventService
         await _eventRepository.UpdateAvatarEventAsync(curEvent);
 
         return ServiceResult<string>.Ok(relativePath);
+    }
+
+    private static bool CanModifyParticipants(Event evt)
+    {
+        if (evt.LifecycleState is EventLifecycleState.Completed or EventLifecycleState.Archived)
+            return false;
+        return DateTime.UtcNow < evt.StartDate;
+    }
+
+    private static bool CanDeleteEvent(Event evt)
+    {
+        if (evt.LifecycleState == EventLifecycleState.Archived)
+            return false;
+        return DateTime.UtcNow < evt.StartDate;
+    }
+
+    private static bool CanUploadEventMedia(Event evt)
+    {
+        if (evt.LifecycleState == EventLifecycleState.Archived)
+            return false;
+        return DateTime.UtcNow >= evt.StartDate;
+    }
+
+    private static string? ValidateLifecycleTransition(Event evt, EventLifecycleState next)
+    {
+        var now = DateTime.UtcNow;
+        var hasStarted = now >= evt.StartDate;
+
+        if (evt.LifecycleState == EventLifecycleState.Archived && next != EventLifecycleState.Archived)
+            return "Архивный статус необратим";
+
+        return (evt.LifecycleState, next) switch
+        {
+            (EventLifecycleState.Draft, EventLifecycleState.Published) => null,
+            (EventLifecycleState.Published, EventLifecycleState.Completed) => null,
+            (EventLifecycleState.Published, EventLifecycleState.Cancelled) => null,
+            (EventLifecycleState.Published, EventLifecycleState.Draft) when !hasStarted => null,
+            (EventLifecycleState.Completed, EventLifecycleState.Archived) => null,
+            (EventLifecycleState.Cancelled, EventLifecycleState.Completed) => null,
+            (EventLifecycleState.Cancelled, EventLifecycleState.Published) => null,
+            _ when evt.LifecycleState == next => null,
+            _ => "Недопустимый переход статуса мероприятия"
+        };
+    }
+
+    private async Task NotifyEventCancelledAsync(Event evt)
+    {
+        var subscribers = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(evt.Id, null, null);
+        var recipients = new HashSet<Guid>(subscribers.Select(s => s.id));
+        recipients.Add(evt.ResponsiblePersonId);
+
+        foreach (var userId in recipients)
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Type = "EventCancelled",
+                Payload = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    event_id = evt.Id,
+                    event_name = evt.Name,
+                    cancelled_at = evt.CancelledAt
+                }),
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationService.AddNotificationIfEnabledAsync(notification);
+        }
+    }
+
+    private async Task NotifyEventPublishedAsync(Event evt)
+    {
+        var categories = evt.EventCategories.Select(c => c.Category.Name).ToList();
+        var recipients = await _eventRepository.GetPublicationSubscribersAsync(evt.ResponsiblePersonId, categories, evt.Id);
+        foreach (var userId in recipients.Distinct())
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Type = "EventPublished",
+                Payload = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    event_id = evt.Id,
+                    event_name = evt.Name,
+                    start_at = evt.StartDate
+                }),
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationService.AddNotificationIfEnabledAsync(notification);
+        }
     }
 }

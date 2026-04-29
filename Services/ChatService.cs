@@ -86,12 +86,15 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<EventChatMessage>.Fail("Мероприятие не найдено");
 
-        if (@event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<EventChatMessage>.Fail("Мероприятие завершено, чат недоступен для отправки сообщений");
+        if (@event.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<EventChatMessage>.Fail("Мероприятие в архиве, чат доступен только для чтения");
 
         var isParticipant = await IsUserParticipantAsync(eventId, userId, @event.ResponsiblePersonId);
         if (!isParticipant)
             return ServiceResult<EventChatMessage>.Fail("Вы не являетесь участником мероприятия");
+        
+        if (!CanWriteChat(@event, userId))
+            return ServiceResult<EventChatMessage>.Fail("У вас нет прав на отправку сообщений в чат");
 
         if (replyToMessageId.HasValue)
         {
@@ -158,7 +161,7 @@ public class ChatService : IChatService
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _notificationService.AddNotificationAsync(notification);
+            await _notificationService.AddNotificationIfEnabledAsync(notification);
         }
 
         return ServiceResult<EventChatMessage>.Ok(reloaded);
@@ -182,8 +185,10 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие не найдено");
 
-        if (@event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие завершено, чат недоступен");
+        if (@event.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие в архиве, чат доступен только для чтения");
+        if (!CanWriteChat(@event, userId))
+            return ServiceResult<ChatMessageResponseDto>.Fail("У вас нет прав на отправку сообщений в чат");
 
         if (removeAttachmentIds is { Count: > 0 })
         {
@@ -244,8 +249,10 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие не найдено");
 
-        if (@event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие завершено, чат недоступен");
+        if (@event.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<ChatMessageResponseDto>.Fail("Мероприятие в архиве, чат доступен только для чтения");
+        if (!CanWriteChat(@event, userId))
+            return ServiceResult<ChatMessageResponseDto>.Fail("У вас нет прав на отправку сообщений в чат");
 
         foreach (var a in newAttachments)
         {
@@ -299,8 +306,10 @@ public class ChatService : IChatService
         if (@event == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
 
-        if (@event.LifecycleState == EventLifecycleState.Completed)
-            return ServiceResult<bool>.Fail("Мероприятие завершено, чат недоступен");
+        if (@event.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<bool>.Fail("Мероприятие в архиве, чат доступен только для чтения");
+        if (!CanWriteChat(@event, userId))
+            return ServiceResult<bool>.Fail("У вас нет прав на отправку сообщений в чат");
 
         foreach (var att in message.Attachments)
             TryDeletePhysicalFile(att.FilePath);
@@ -412,5 +421,17 @@ public class ChatService : IChatService
 
         var subscribers = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(eventId, null, null);
         return subscribers.Any(u => u.id == userId);
+    }
+
+    private static bool CanWriteChat(Event @event, Guid userId)
+    {
+        if (userId == @event.ResponsiblePersonId)
+            return true;
+
+        var role = @event.EventRoles.FirstOrDefault(x => x.UserId == userId);
+        if (role == null)
+            return false;
+
+        return role.ParticipantRole != ParticipantRoleKind.Observer;
     }
 }

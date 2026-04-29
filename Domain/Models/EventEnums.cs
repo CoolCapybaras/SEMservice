@@ -9,7 +9,8 @@ public enum EventLifecycleState
     Draft,
     Published,
     Completed,
-    Cancelled
+    Cancelled,
+    Archived
 }
 
 /// <summary>Формат проведения: очно / онлайн / гибрид.</summary>

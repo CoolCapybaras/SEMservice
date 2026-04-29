@@ -9,6 +9,7 @@ public interface IEventRepository
     Task<IEnumerable<Event>> GetAllEventsAsync();
     Task<Event?> GetEventByIdAsync(Guid eventId);
     Task<List<Event>> SearchEventsAsync(SearchRequest request);
+    Task<List<Event>> SearchArchivedEventsAsync(SearchRequest request, Guid userId);
     Task<List<CategoryResponse>> GetEventCategoriesAsync(Guid eventId);
     Task<List<Event>> GetMyEventsAsync(Guid userId);
     Task<EventCategory> AddCategoryToEventAsync(Guid eventId, string categoryName);
@@ -36,4 +37,6 @@ public interface IEventRepository
     Task DeleteContact(Guid eventId, Guid userId);
     Task DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds);
     Task<Event> UpdateAvatarEventAsync(Event entity);
+    Task<Event> CloneArchivedEventAsTemplateAsync(Event sourceEvent, Guid newOwnerId, string newName);
+    Task<List<Guid>> GetPublicationSubscribersAsync(Guid organizerId, IReadOnlyCollection<string> categoryNames, Guid eventId);
 }

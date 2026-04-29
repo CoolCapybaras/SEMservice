@@ -69,7 +69,7 @@ public class EventPostService : IEventPostService
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _notificationService.AddNotificationAsync(notification);
+            await _notificationService.AddNotificationIfEnabledAsync(notification);
         }
 
         return ServiceResult<EventPost>.Ok(post);
@@ -166,7 +166,7 @@ public class EventPostService : IEventPostService
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _notificationService.AddNotificationAsync(notification);
+            await _notificationService.AddNotificationIfEnabledAsync(notification);
         }
     }
 }

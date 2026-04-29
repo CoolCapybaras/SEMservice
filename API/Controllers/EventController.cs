@@ -53,6 +53,27 @@ public class EventController : ControllerBase
         var result = await _eventService.SearchEventsAsync(request);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
+    
+    /// <summary>
+    /// Поиск архивных мероприятий
+    /// </summary>
+    [HttpGet("archive")]
+    [Authorize]
+    public async Task<IActionResult> SearchArchivedEvents([FromQuery] SearchRequest request)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.SearchArchivedEventsAsync(request, userId);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{eventId}/copy-template")]
+    [Authorize]
+    public async Task<IActionResult> CopyArchivedEventAsTemplate(Guid eventId, [FromQuery] string? name = null)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.CopyArchivedEventAsTemplateAsync(eventId, userId, name);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
 
     /// <summary>
     /// Получить мероприятия созданные текущим пользователем
@@ -95,10 +116,10 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpPost("{eventId}/unsubscribe")]
     [Authorize]
-    public async Task<IActionResult> DeleteSuscriber(Guid eventId)
+    public async Task<IActionResult> DeleteSuscriber(Guid eventId, [FromQuery] Guid? transferToUserId = null)
     {
         var userId = GetUserIdFromToken();
-        var result = await _eventService.DeleteSuscriber(eventId, userId);
+        var result = await _eventService.DeleteSuscriber(eventId, userId, transferToUserId);
         return result.Success ? Ok(new { result = eventId, userId }) : BadRequest(new { error = result.Error });
     }
     
@@ -159,7 +180,7 @@ public class EventController : ControllerBase
         var result = await _eventService.UpdateEventAsync(eventId, request, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
-    
+
     /// <summary>
     /// Обновить статус мероприятия
     /// </summary>
@@ -169,6 +190,18 @@ public class EventController : ControllerBase
     {
         var userId = GetUserIdFromToken();
         var result = await _eventService.UpdateEventLifecycleStateAsync(eventId, request, userId);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
+    /// Отменить или снять отмену мероприятия
+    /// </summary>
+    [HttpPatch("{eventId}/cancellation")]
+    [Authorize]
+    public async Task<IActionResult> SetEventCancellation(Guid eventId, [FromBody] EventCancellationRequest request)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.SetEventCancellationAsync(eventId, request, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
     

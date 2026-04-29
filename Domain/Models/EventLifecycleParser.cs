@@ -11,6 +11,7 @@ public static class EventLifecycleParser
             "ACTIVE" or "PUBLISHED" or "ОПУБЛИКОВАНО" => EventLifecycleState.Published,
             "FINISHED" or "COMPLETED" or "ЗАВЕРШЕНО" => EventLifecycleState.Completed,
             "CANCELLED" or "ОТМЕНЕНО" => EventLifecycleState.Cancelled,
+            "ARCHIVED" or "АРХИВ" => EventLifecycleState.Archived,
             "DRAFT" or "ЧЕРНОВИК" => EventLifecycleState.Draft,
             _ => EventLifecycleState.Published
         };

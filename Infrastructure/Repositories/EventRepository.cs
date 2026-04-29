@@ -41,6 +41,9 @@ public class EventRepository : IEventRepository
                 Auditorium = request.Auditorium,
                 VenueFormat = request.VenueFormat,
                 LifecycleState = EventLifecycleState.Draft,
+                IsCancelled = false,
+                CancelledAt = null,
+                BufferDays = request.BufferDays ?? 14,
                 ResponsiblePersonId = request.ResponsiblePersonId,
                 MaxParticipants = request.MaxParticipants ?? -1,
                 Color = request.Color,
@@ -73,7 +76,8 @@ public class EventRepository : IEventRepository
                     EventId = eventId,
                     UserId = userId,
                     ParticipantRole = kind,
-                    IsContact = kind == ParticipantRoleKind.Organizer && userId == request.ResponsiblePersonId
+                    IsContact = kind == ParticipantRoleKind.Organizer && userId == request.ResponsiblePersonId,
+                    AddedAt = DateTime.UtcNow
                 });
             }
 
@@ -107,46 +111,7 @@ public class EventRepository : IEventRepository
 
     public async Task<List<Event>> SearchEventsAsync(SearchRequest request)
     {
-        var query = _context.Events.AsQueryable();
-
-		// Фильтр по временному промежутку
-		if (request.Start != null && request.End != null)
-		{
-			query = query.Where(e =>
-				(!e.EndDate.HasValue || e.EndDate >= request.Start) &&
-				e.StartDate <= request.End);
-		}
-
-		// Фильтр по имени
-		if (!string.IsNullOrWhiteSpace(request.Name))
-		{
-			query = query.Where(e => EF.Functions.ILike(e.Name, $"{request.Name}%"));
-		}
-
-		// Фильтр по организаторам
-		if (request.Organizators != null && request.Organizators.Count > 0)
-		{
-			query = query.Where(e => request.Organizators.Contains(e.ResponsiblePersonId));
-		}
-
-		if (request.VenueFormat.HasValue)
-			query = query.Where(e => e.VenueFormat == request.VenueFormat.Value);
-		else if (!string.IsNullOrWhiteSpace(request.Format))
-			query = query.Where(e => e.VenueFormat == VenueFormatParser.Parse(request.Format));
-
-		// Фильтр по свободным местам
-		if (request.HasFreePlaces == true)
-		{
-			query = query.Where(e => e.EventRoles.Count() < e.MaxParticipants);
-		}
-
-		// Фильтр по категориям
-		if (request.Categories != null && request.Categories.Count > 0)
-		{
-			query = query.Where(e => e.EventCategories.Any(c => request.Categories.Contains(c.Category.Name)));
-		}
-
-		query = query
+        var query = ApplySearchFilters(_context.Events.Where(e => e.LifecycleState != EventLifecycleState.Archived), request)
             .OrderBy(e => e.StartDate)
             .Skip(request.Offset)
             .Take(request.Count);
@@ -155,6 +120,62 @@ public class EventRepository : IEventRepository
             .Include(e => e.EventCategories)
             .ThenInclude(ec => ec.Category)
             .ToListAsync();
+    }
+    
+    public async Task<List<Event>> SearchArchivedEventsAsync(SearchRequest request, Guid userId)
+    {
+        var query = ApplySearchFilters(_context.Events.Where(e => e.LifecycleState == EventLifecycleState.Archived), request)
+            .OrderBy(e => e.StartDate)
+            .Skip(request.Offset)
+            .Take(request.Count);
+
+        return await query
+            .Include(e => e.EventCategories)
+            .ThenInclude(ec => ec.Category)
+            .Include(e => e.EventRoles)
+            .ToListAsync();
+    }
+
+    private static IQueryable<Event> ApplySearchFilters(IQueryable<Event> query, SearchRequest request)
+    {
+        if (request.Start != null && request.End != null)
+        {
+            query = query.Where(e =>
+                (!e.EndDate.HasValue || e.EndDate >= request.Start) &&
+                e.StartDate <= request.End);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            query = query.Where(e => e.Name != null && EF.Functions.ILike(e.Name, $"{request.Name}%"));
+        }
+
+        if (request.Organizators != null && request.Organizators.Count > 0)
+        {
+            query = query.Where(e => request.Organizators.Contains(e.ResponsiblePersonId));
+        }
+
+        if (request.VenueFormat.HasValue)
+            query = query.Where(e => e.VenueFormat == request.VenueFormat.Value);
+        else if (!string.IsNullOrWhiteSpace(request.Format))
+            query = query.Where(e => e.VenueFormat == VenueFormatParser.Parse(request.Format));
+
+        if (request.HasFreePlaces == true)
+        {
+            query = query.Where(e => e.MaxParticipants == null || e.MaxParticipants < 0 || e.EventRoles.Count() < e.MaxParticipants);
+        }
+
+        if (request.Categories != null && request.Categories.Count > 0)
+        {
+            query = query.Where(e => e.EventCategories.Any(c => request.Categories.Contains(c.Category.Name)));
+        }
+
+        if (request.Types != null && request.Types.Count > 0)
+        {
+            query = query.Where(e => e.SelectedTypes.Any(t => request.Types.Contains(t.TypeKind)));
+        }
+
+        return query;
     }
 
     public async Task<List<Event>> GetMyEventsAsync(Guid userId)
@@ -315,7 +336,8 @@ public class EventRepository : IEventRepository
         {
             EventId = eventId,
             UserId = userId,
-            ParticipantRole = ParticipantRoleKind.Observer
+            ParticipantRole = ParticipantRoleKind.Observer,
+            AddedAt = DateTime.UtcNow
         };
 
         await _context.EventRoles.AddAsync(newSuscriber);
@@ -363,7 +385,8 @@ public class EventRepository : IEventRepository
             EventId = eventId,
             UserId = userId,
             ParticipantRole = role,
-            IsContact = isContact
+            IsContact = isContact,
+            AddedAt = DateTime.UtcNow
         };
         _context.EventRoles.Add(row);
         await _context.SaveChangesAsync();
@@ -429,6 +452,7 @@ public class EventRepository : IEventRepository
                 AvatarUrl = user.AvatarUrl,
                 Role = roleDisplay,
                 IsContact = userRole.IsContact,
+                AddedAt = userRole.AddedAt
             };
             usersRoles.Add(eventUser);
         }
@@ -475,7 +499,8 @@ public class EventRepository : IEventRepository
                 Telegram = user.Telegram,
                 City = user.City,
                 AvatarUrl = user.AvatarUrl,
-                Role = roleDisplay
+                Role = roleDisplay,
+                AddedAt = userRole.AddedAt
             };
             usersRoles.Add(eventUser);
         }
@@ -618,5 +643,166 @@ public class EventRepository : IEventRepository
         _context.Events.Update(entity);
         await _context.SaveChangesAsync();
         return entity;
+    }
+
+    public async Task<Event> CloneArchivedEventAsTemplateAsync(Event sourceEvent, Guid newOwnerId, string newName)
+    {
+        var source = await _context.Events
+            .Include(e => e.EventCategories)
+                .ThenInclude(ec => ec.Category)
+            .Include(e => e.SelectedTypes)
+            .Include(e => e.EventRoles)
+            .Include(e => e.Attachments)
+            .Include(e => e.Photos)
+            .Include(e => e.Notes)
+            .FirstOrDefaultAsync(e => e.Id == sourceEvent.Id)
+            ?? throw new InvalidOperationException("Мероприятие не найдено");
+
+        var sourceColumns = await _context.BoardColumn
+            .Where(c => c.EventId == source.Id)
+            .Include(c => c.Tasks)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        var newEventId = Guid.NewGuid();
+        var startDate = now.AddDays(7);
+        var endDate = source.EndDate.HasValue ? startDate.Add(source.EndDate.Value - source.StartDate) : startDate.AddDays(1);
+
+        var clonedEvent = new Event
+        {
+            Id = newEventId,
+            Name = newName,
+            Description = source.Description,
+            StartDate = startDate,
+            EndDate = endDate,
+            Location = source.Location,
+            Auditorium = source.Auditorium,
+            VenueFormat = source.VenueFormat,
+            LifecycleState = EventLifecycleState.Draft,
+            IsCancelled = false,
+            CancelledAt = null,
+            BufferDays = source.BufferDays,
+            ResponsiblePersonId = newOwnerId,
+            MaxParticipants = source.MaxParticipants,
+            Color = source.Color,
+            Avatar = null
+        };
+
+        _context.Events.Add(clonedEvent);
+        await _context.SaveChangesAsync();
+
+        foreach (var sourceType in source.SelectedTypes.DistinctBy(t => t.TypeKind))
+        {
+            _context.EventSelectedTypes.Add(new EventSelectedType
+            {
+                EventId = newEventId,
+                TypeKind = sourceType.TypeKind
+            });
+        }
+
+        foreach (var sourceCategory in source.EventCategories)
+        {
+            _context.EventCategories.Add(new EventCategory
+            {
+                EventId = newEventId,
+                CategoryId = sourceCategory.CategoryId
+            });
+        }
+
+        _context.EventRoles.Add(new EventRole
+        {
+            EventId = newEventId,
+            UserId = newOwnerId,
+            ParticipantRole = ParticipantRoleKind.Organizer,
+            IsContact = true,
+            AddedAt = now
+        });
+
+        foreach (var sourceAttachment in source.Attachments.Where(a => a.Kind == EventAttachmentKind.Link))
+        {
+            _context.EventAttachments.Add(new EventAttachment
+            {
+                Id = Guid.NewGuid(),
+                EventId = newEventId,
+                AuthorId = newOwnerId,
+                Kind = EventAttachmentKind.Link,
+                Title = sourceAttachment.Title,
+                Resource = sourceAttachment.Resource,
+                OriginalFileName = null,
+                ContentType = null,
+                Size = null,
+                CreatedAt = now
+            });
+        }
+
+        var columnIdMap = new Dictionary<Guid, Guid>();
+        foreach (var sourceColumn in sourceColumns.OrderBy(c => c.Order))
+        {
+            var newColumnId = Guid.NewGuid();
+            columnIdMap[sourceColumn.Id] = newColumnId;
+            _context.BoardColumn.Add(new BoardColumn
+            {
+                Id = newColumnId,
+                EventId = newEventId,
+                Name = sourceColumn.Name,
+                Order = sourceColumn.Order
+            });
+        }
+
+        foreach (var sourceColumn in sourceColumns)
+        {
+            var newColumnId = columnIdMap[sourceColumn.Id];
+            foreach (var sourceTask in sourceColumn.Tasks.OrderBy(t => t.Order))
+            {
+                _context.BoardTasks.Add(new BoardTask
+                {
+                    Id = Guid.NewGuid(),
+                    ColumnId = newColumnId,
+                    Title = sourceTask.Title,
+                    Description = sourceTask.Description,
+                    AssignedUserId = null,
+                    CreatorId = newOwnerId,
+                    DueDate = null,
+                    DeadlineReminderSentAt = null,
+                    OverdueNotificationSentAt = null,
+                    Order = sourceTask.Order,
+                    CreatedAt = now,
+                    UpdatedAt = null
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return clonedEvent;
+    }
+
+    public async Task<List<Guid>> GetPublicationSubscribersAsync(Guid organizerId, IReadOnlyCollection<string> categoryNames, Guid eventId)
+    {
+        var normalizedCategories = categoryNames
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim().ToLower())
+            .ToList();
+
+        var byOrganizer = await _context.EventRoles
+            .Where(r => r.Event.ResponsiblePersonId == organizerId)
+            .Select(r => r.UserId)
+            .ToListAsync();
+
+        var byCategories = normalizedCategories.Count == 0
+            ? new List<Guid>()
+            : await _context.EventRoles
+                .Where(r => r.Event.EventCategories.Any(ec => normalizedCategories.Contains(ec.Category.Name.ToLower())))
+                .Select(r => r.UserId)
+                .ToListAsync();
+
+        var participants = await _context.EventRoles
+            .Where(r => r.EventId == eventId)
+            .Select(r => r.UserId)
+            .ToListAsync();
+
+        var recipients = new HashSet<Guid>(byOrganizer.Concat(byCategories));
+        recipients.ExceptWith(participants);
+        recipients.Remove(organizerId);
+        return recipients.ToList();
     }
 }

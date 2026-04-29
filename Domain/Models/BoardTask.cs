@@ -26,9 +26,15 @@ public class BoardTask
     
     public DateTime? DueDate { get; set; }
 
+    public DateTime? DeadlineReminderSentAt { get; set; }
+
+    public DateTime? OverdueNotificationSentAt { get; set; }
+
     public int Order { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    public ICollection<BoardTaskComment> Comments { get; set; } = new List<BoardTaskComment>();
 }

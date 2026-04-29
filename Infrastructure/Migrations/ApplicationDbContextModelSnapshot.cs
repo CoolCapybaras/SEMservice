@@ -64,6 +64,9 @@ namespace Infrastructure.Migrations
                     b.Property<Guid>("CreatorId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DeadlineReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
@@ -72,6 +75,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("OverdueNotificationSentAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -86,6 +92,72 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ColumnId");
 
                     b.ToTable("BoardTasks");
+                });
+
+            modelBuilder.Entity("SEM.Domain.Models.BoardTaskComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("BoardTaskComments");
+                });
+
+            modelBuilder.Entity("SEM.Domain.Models.BoardTaskHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ChangedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FieldName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NewValue")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OldValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("BoardTaskHistories");
                 });
 
             modelBuilder.Entity("SEM.Domain.Models.Category", b =>
@@ -119,6 +191,15 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Avatar")
                         .HasColumnType("text");
 
+                    b.Property<int>("BufferDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("BufferEnding3dNotificationSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Color")
                         .IsRequired()
                         .HasMaxLength(7)
@@ -130,6 +211,15 @@ namespace Infrastructure.Migrations
 
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EventStart1hNotificationSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EventStart24hNotificationSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("LifecycleState")
                         .HasColumnType("integer");
@@ -161,6 +251,51 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ResponsiblePersonId");
 
                     b.ToTable("Events");
+                });
+
+            modelBuilder.Entity("SEM.Domain.Models.EventAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long?>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("EventId");
+
+                    b.ToTable("EventAttachments");
                 });
 
             modelBuilder.Entity("SEM.Domain.Models.EventCategory", b =>
@@ -248,6 +383,38 @@ namespace Infrastructure.Migrations
                     b.ToTable("EventChatMessages");
                 });
 
+            modelBuilder.Entity("SEM.Domain.Models.EventNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("EventId");
+
+                    b.ToTable("EventNotes");
+                });
+
             modelBuilder.Entity("SEM.Domain.Models.EventPhoto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -307,6 +474,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsContact")
                         .HasColumnType("boolean");
@@ -443,6 +613,21 @@ namespace Infrastructure.Migrations
                     b.Property<string>("LastName")
                         .HasColumnType("text");
 
+                    b.Property<int>("NotificationChannel")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("NotifyEventCancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyEventStart")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyTaskAssigned")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyTaskDeadline")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -458,6 +643,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<string>("Telegram")
                         .HasColumnType("text");
+
+                    b.Property<int>("Theme")
+                        .HasColumnType("integer");
 
                     b.Property<int>("UserPrivilege")
                         .HasColumnType("integer");
@@ -492,6 +680,36 @@ namespace Infrastructure.Migrations
                     b.Navigation("Column");
                 });
 
+            modelBuilder.Entity("SEM.Domain.Models.BoardTaskComment", b =>
+                {
+                    b.HasOne("SEM.Domain.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SEM.Domain.Models.BoardTask", "Task")
+                        .WithMany("Comments")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("SEM.Domain.Models.BoardTaskHistory", b =>
+                {
+                    b.HasOne("SEM.Domain.Models.BoardTask", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
             modelBuilder.Entity("SEM.Domain.Models.Event", b =>
                 {
                     b.HasOne("SEM.Domain.Models.User", "ResponsiblePerson")
@@ -501,6 +719,25 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ResponsiblePerson");
+                });
+
+            modelBuilder.Entity("SEM.Domain.Models.EventAttachment", b =>
+                {
+                    b.HasOne("SEM.Domain.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SEM.Domain.Models.Event", "Event")
+                        .WithMany("Attachments")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("SEM.Domain.Models.EventCategory", b =>
@@ -556,6 +793,25 @@ namespace Infrastructure.Migrations
                     b.Navigation("ReplyToMessage");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SEM.Domain.Models.EventNote", b =>
+                {
+                    b.HasOne("SEM.Domain.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SEM.Domain.Models.Event", "Event")
+                        .WithMany("Notes")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("SEM.Domain.Models.EventPhoto", b =>
@@ -661,6 +917,11 @@ namespace Infrastructure.Migrations
                     b.Navigation("Tasks");
                 });
 
+            modelBuilder.Entity("SEM.Domain.Models.BoardTask", b =>
+                {
+                    b.Navigation("Comments");
+                });
+
             modelBuilder.Entity("SEM.Domain.Models.Category", b =>
                 {
                     b.Navigation("EventCategories");
@@ -668,9 +929,13 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("SEM.Domain.Models.Event", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("EventCategories");
 
                     b.Navigation("EventRoles");
+
+                    b.Navigation("Notes");
 
                     b.Navigation("Photos");
 

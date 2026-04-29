@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -7,6 +8,7 @@ using SEM.Infrastructure.Data;
 using SEM.Services;
 using Infrastructure;
 using SEM.Services.Hubs;
+using SEM.API.Background;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,7 +63,11 @@ builder.Services.AddAuthentication(options =>
 // --------------------
 // 3. Контроллеры
 // --------------------
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 // --------------------
 // 4. Swagger + JWT
@@ -122,6 +128,7 @@ builder.WebHost.ConfigureKestrel(options =>
 // 6. SignalR
 // --------------------
 builder.Services.AddSignalR();
+builder.Services.AddHostedService<EventLifecycleBackgroundService>();
 
 // --------------------
 // 7. Build App
@@ -167,5 +174,6 @@ app.MapControllers();
 // --------------------
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<BoardHub>("/hubs/board");
 
 app.Run();

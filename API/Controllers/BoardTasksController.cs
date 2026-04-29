@@ -91,6 +91,66 @@ public class BoardTasksController : ControllerBase
 
         return NoContent();
     }
+    
+    /// <summary>
+    /// Получить мои назначенные задачи
+    /// </summary>
+    [HttpGet("my-tasks")]
+    [Authorize]
+    public async Task<IActionResult> GetMyTasks()
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _service.GetCurrentUserTasksAsync(userId);
+        return Ok(result.Data);
+    }
+    
+    /// <summary>
+    /// Получить мои назначенные задачи в рамках мероприятия
+    /// </summary>
+    [HttpGet("event/my-tasks")]
+    [Authorize]
+    public async Task<IActionResult> GetMyTasksByEvent(Guid eventId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _service.GetCurrentUserTasksByEventAsync(eventId, userId);
+        return result.Success ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>
+    /// Добавить комментарий к задаче
+    /// </summary>
+    [HttpPost("tasks/{taskId}/comments")]
+    [Authorize]
+    public async Task<IActionResult> AddComment(Guid taskId, [FromBody] BoardTaskCommentRequest request)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _service.AddCommentAsync(taskId, userId, request.Text);
+        return result.Success ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>
+    /// Получить комментарии задачи
+    /// </summary>
+    [HttpGet("tasks/{taskId}/comments")]
+    [Authorize]
+    public async Task<IActionResult> GetComments(Guid taskId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _service.GetCommentsAsync(taskId, userId);
+        return result.Success ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>
+    /// Получить историю изменений задачи
+    /// </summary>
+    [HttpGet("tasks/{taskId}/history")]
+    [Authorize]
+    public async Task<IActionResult> GetTaskHistory(Guid taskId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _service.GetHistoryAsync(taskId, userId);
+        return result.Success ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
 
     private Guid GetUserIdFromToken()
     {

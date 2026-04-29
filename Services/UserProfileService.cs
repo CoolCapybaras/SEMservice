@@ -34,6 +34,18 @@ public class UserProfileService : IUserProfileService
         profile.PhoneNumber = updateModel.PhoneNumber ?? profile.PhoneNumber;
         profile.Telegram = updateModel.Telegram ?? profile.Telegram;
         profile.City = updateModel.City ?? profile.City;
+        if (updateModel.Theme.HasValue)
+            profile.Theme = updateModel.Theme.Value;
+        if (updateModel.NotificationChannel.HasValue)
+            profile.NotificationChannel = updateModel.NotificationChannel.Value;
+        if (updateModel.NotifyTaskAssigned.HasValue)
+            profile.NotifyTaskAssigned = updateModel.NotifyTaskAssigned.Value;
+        if (updateModel.NotifyTaskDeadline.HasValue)
+            profile.NotifyTaskDeadline = updateModel.NotifyTaskDeadline.Value;
+        if (updateModel.NotifyEventStart.HasValue)
+            profile.NotifyEventStart = updateModel.NotifyEventStart.Value;
+        if (updateModel.NotifyEventCancelled.HasValue)
+            profile.NotifyEventCancelled = updateModel.NotifyEventCancelled.Value;
 
         // === Сохранение ===
         var updatedProfile = await _profileRepository.UpdateProfileAsync(profile);
