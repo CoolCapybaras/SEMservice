@@ -26,6 +26,7 @@ public class BoardColumnRepository : IBoardColumnRepository
         return await _context.BoardColumn
             .Where(c => c.EventId == eventId)
             .Include(c => c.Tasks)
+            .ThenInclude(t => t.AssignedUser)
             .OrderBy(c => c.Order)
             .ToListAsync();
     }

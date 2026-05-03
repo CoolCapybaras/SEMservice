@@ -29,4 +29,16 @@ public class BoardTaskCommentRepository : IBoardTaskCommentRepository
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
     }
+    
+    public async Task<Dictionary<Guid, int>> GetCommentCountsByTaskIdsAsync(IReadOnlyCollection<Guid> taskIds)
+    {
+        if (taskIds.Count == 0)
+            return new Dictionary<Guid, int>();
+
+        return await _context.BoardTaskComments
+            .Where(c => taskIds.Contains(c.TaskId))
+            .GroupBy(c => c.TaskId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
+    }
 }

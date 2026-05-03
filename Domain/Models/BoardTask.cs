@@ -21,10 +21,14 @@ public class BoardTask
     public string? Description { get; set; }
 
     public Guid? AssignedUserId { get; set; }
-    
+
+    public User? AssignedUser { get; set; }
+
     public Guid CreatorId { get; set; }
     
     public DateTime? DueDate { get; set; }
+
+    public BoardTaskPriority Priority { get; set; } = BoardTaskPriority.Medium;
 
     public DateTime? DeadlineReminderSentAt { get; set; }
 

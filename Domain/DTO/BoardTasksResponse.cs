@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using SEM.Domain.Models;
+﻿using SEM.Domain.Models;
 
 namespace Domain.DTO;
 
@@ -16,6 +14,7 @@ public class BoardTasksResponse
     public Guid? AssignedUserId { get; set; }
     public Guid CreatorId { get; set; }
     public DateTime? DueDate { get; set; }
+    public BoardTaskPriority Priority { get; set; }
     public int Order { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

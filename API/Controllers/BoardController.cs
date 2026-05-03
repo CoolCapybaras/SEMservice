@@ -22,10 +22,21 @@ public class BoardController : ControllerBase
     /// </summary>
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetBoard(Guid eventId)
+    public async Task<IActionResult> GetBoard(Guid eventId, [FromQuery] BoardKanbanQuery? query)
     {
-        var result = await _service.GetBoardAsync(eventId);
-        return Ok(result.Data);
+        var userId = GetUserIdFromToken();
+        var result = await _service.GetBoardAsync(eventId, userId, query);
+        return result.Success ? Ok(result.Data) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Список исполнителей по задачам доски (для фильтра).</summary>
+    [HttpGet("facets")]
+    [Authorize]
+    public async Task<IActionResult> GetBoardFacets(Guid eventId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _service.GetBoardFacetsAsync(eventId, userId);
+        return result.Success ? Ok(result.Data) : BadRequest(new { error = result.Error });
     }
 
     /// <summary>

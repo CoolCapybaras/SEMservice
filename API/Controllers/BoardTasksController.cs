@@ -27,7 +27,7 @@ public class BoardTasksController : ControllerBase
     {
         var userId = GetUserIdFromToken();
         var result = await _service.CreateTaskAsync(columnId, task.Title, task.Description, task.AssignedUserId,
-            task.DueDate, userId);
+            task.DueDate, userId, task.Priority);
 
         if (!result.Success)
             return BadRequest(new { error = result.Error });

@@ -763,6 +763,7 @@ public class EventRepository : IEventRepository
                     AssignedUserId = null,
                     CreatorId = newOwnerId,
                     DueDate = null,
+                    Priority = sourceTask.Priority,
                     DeadlineReminderSentAt = null,
                     OverdueNotificationSentAt = null,
                     Order = sourceTask.Order,

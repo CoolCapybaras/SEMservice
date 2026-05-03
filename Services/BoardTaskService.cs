@@ -8,7 +8,7 @@ using SEM.Services.Hubs;
 
 namespace SEM.Services;
 
-public class BoardTaskService: IBoardTaskService
+public class BoardTaskService : IBoardTaskService
 {
     private readonly IBoardTaskRepository _repository;
     private readonly IBoardTaskCommentRepository _commentRepository;
@@ -34,7 +34,7 @@ public class BoardTaskService: IBoardTaskService
     }
 
     public async Task<ServiceResult<BoardTaskDto>> CreateTaskAsync(Guid columnId, string title, string? description, Guid? assigneeId, DateTime? deadline,
-        Guid userId)
+        Guid userId, BoardTaskPriority? priority = null)
     {
         var column = await _columnRepository.GetColumnByIdAsync(columnId);
         if (column == null)
@@ -70,6 +70,7 @@ public class BoardTaskService: IBoardTaskService
             AssignedUserId = assigneeId,
             CreatorId = userId,
             DueDate = deadline,
+            Priority = priority ?? BoardTaskPriority.Medium,
             Order = maxOrder + 1
         };
 
@@ -82,23 +83,53 @@ public class BoardTaskService: IBoardTaskService
             Action = "TaskCreated",
             NewValue = title
         });
-        await _boardHubContext.Clients.Group(eventEntity.Id.ToString()).SendAsync("TaskCreated", ToDto(task, column.Name));
-        return ServiceResult<BoardTaskDto>.Ok(ToDto(task, column.Name));
+        var created = await _repository.GetTaskByIdAsync(task.Id) ?? task;
+        await _boardHubContext.Clients.Group(eventEntity.Id.ToString()).SendAsync("TaskCreated", ToDto(created, column.Name, 0));
+        return ServiceResult<BoardTaskDto>.Ok(ToDto(created, column.Name, 0));
     }
 
     public async Task<ServiceResult<List<BoardTaskDto>>> GetTasksAsync(Guid columnId)
     {
         var tasks = await _repository.GetTasksByColumnIdAsync(columnId);
         var column = await _columnRepository.GetColumnByIdAsync(columnId);
-        var dtoList = tasks.Select(t => ToDto(t, column.Name)).ToList();
+        var counts = await _commentRepository.GetCommentCountsByTaskIdsAsync(tasks.Select(t => t.Id).ToList());
+        var dtoList = tasks.Select(t => ToDto(t, column!.Name, counts.GetValueOrDefault(t.Id))).ToList();
         return ServiceResult<List<BoardTaskDto>>.Ok(dtoList);
+    }
+
+    public async Task<ServiceResult<List<BoardTasksResponse>>> GetCurrentUserTasksAsync(Guid userId)
+    {
+        var tasks = await _repository.GetCurrentUserTasksAsync(userId);
+        var dtoList = tasks.Select(ToMyTaskDto).ToList();
+
+        return ServiceResult<List<BoardTasksResponse>>.Ok(dtoList);
+    }
+
+    public async Task<ServiceResult<List<BoardTasksResponse>>> GetCurrentUserTasksByEventAsync(Guid eventId, Guid userId)
+    {
+        var eventEntity = await _eventRepository.GetEventByIdAsync(eventId);
+        if (eventEntity == null)
+            return ServiceResult<List<BoardTasksResponse>>.Fail("Мероприятие не найдено");
+
+        var isParticipant = userId == eventEntity.ResponsiblePersonId || eventEntity.EventRoles.Any(r => r.UserId == userId);
+        if (!isParticipant)
+            return ServiceResult<List<BoardTasksResponse>>.Fail("Вы не являетесь участником мероприятия");
+
+        var tasks = await _repository.GetCurrentUserTasksByEventAsync(userId, eventId);
+        var dtoList = tasks.Select(ToMyTaskDto).ToList();
+        return ServiceResult<List<BoardTasksResponse>>.Ok(dtoList);
     }
 
     public async Task<ServiceResult<BoardTaskDto?>> GetTaskByIdAsync(Guid taskId)
     {
         var task = await _repository.GetTaskByIdAsync(taskId);
+        if (task == null)
+            return ServiceResult<BoardTaskDto?>.Ok(null);
         var column = await _columnRepository.GetColumnByIdAsync(task.ColumnId);
-        return ServiceResult<BoardTaskDto?>.Ok(ToDto(task, column.Name));
+        if (column == null)
+            return ServiceResult<BoardTaskDto?>.Ok(null);
+        var counts = await _commentRepository.GetCommentCountsByTaskIdsAsync(new[] { task.Id });
+        return ServiceResult<BoardTaskDto?>.Ok(ToDto(task, column.Name, counts.GetValueOrDefault(task.Id)));
     }
 
     public async Task<ServiceResult<BoardTaskDto>> UpdateTaskAsync(Guid taskId, BoardTaskUpdateRequest request, Guid userId)
@@ -150,13 +181,19 @@ public class BoardTaskService: IBoardTaskService
             task.DeadlineReminderSentAt = null;
             task.OverdueNotificationSentAt = null;
         }
+        if (request.Priority.HasValue && request.Priority.Value != task.Priority)
+        {
+            historyEntries.Add(CreateHistory(task.Id, userId, "TaskUpdated", "Priority", task.Priority.ToString(), request.Priority.Value.ToString()));
+            task.Priority = request.Priority.Value;
+        }
 
         task.UpdatedAt = DateTime.UtcNow;
         await _repository.UpdateTaskAsync(task);
         if (historyEntries.Count > 0)
             await _historyRepository.AddRangeAsync(historyEntries);
 
-        var dto = ToDto(task, column.Name);
+        var counts = await _commentRepository.GetCommentCountsByTaskIdsAsync(new[] { task.Id });
+        var dto = ToDto(task, column.Name, counts.GetValueOrDefault(task.Id));
         await _boardHubContext.Clients.Group(eventEntity.Id.ToString()).SendAsync("TaskUpdated", dto);
         return ServiceResult<BoardTaskDto>.Ok(dto);
     }
@@ -258,30 +295,14 @@ public class BoardTaskService: IBoardTaskService
         return ServiceResult<List<BoardTaskHistoryResponse>>.Ok(history.Select(ToHistoryDto).ToList());
     }
     
-    public async Task<ServiceResult<List<BoardTasksResponse>>> GetCurrentUserTasksAsync(Guid userId)
+    private static string UserDisplayName(User u)
     {
-        var tasks = await _repository.GetCurrentUserTasksAsync(userId);
-        var dtoList = tasks.Select(ToMyTaskDto).ToList();
-
-        return ServiceResult<List<BoardTasksResponse>>.Ok(dtoList);
+        var parts = new[] { u.FirstName, u.LastName }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim());
+        var name = string.Join(" ", parts);
+        return string.IsNullOrEmpty(name) ? (u.Email ?? u.Id.ToString()) : name;
     }
 
-    public async Task<ServiceResult<List<BoardTasksResponse>>> GetCurrentUserTasksByEventAsync(Guid eventId, Guid userId)
-    {
-        var eventEntity = await _eventRepository.GetEventByIdAsync(eventId);
-        if (eventEntity == null)
-            return ServiceResult<List<BoardTasksResponse>>.Fail("Мероприятие не найдено");
-
-        var isParticipant = userId == eventEntity.ResponsiblePersonId || eventEntity.EventRoles.Any(r => r.UserId == userId);
-        if (!isParticipant)
-            return ServiceResult<List<BoardTasksResponse>>.Fail("Вы не являетесь участником мероприятия");
-
-        var tasks = await _repository.GetCurrentUserTasksByEventAsync(userId, eventId);
-        var dtoList = tasks.Select(ToMyTaskDto).ToList();
-        return ServiceResult<List<BoardTasksResponse>>.Ok(dtoList);
-    }
-    
-    private BoardTaskDto ToDto(BoardTask task, string status)
+    private BoardTaskDto ToDto(BoardTask task, string status, int commentCount)
     {
         return new BoardTaskDto
         {
@@ -289,8 +310,12 @@ public class BoardTaskService: IBoardTaskService
             Title = task.Title,
             Description = task.Description,
             AssignedUserId = task.AssignedUserId,
+            AssigneeDisplayName = task.AssignedUser != null ? UserDisplayName(task.AssignedUser) : null,
+            AssigneeAvatarUrl = task.AssignedUser?.AvatarUrl,
             CreatorId = task.CreatorId,
             DueDate = task.DueDate,
+            Priority = task.Priority,
+            CommentCount = commentCount,
             Order = task.Order,
             CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
@@ -347,7 +372,7 @@ public class BoardTaskService: IBoardTaskService
             CreatedAt = history.CreatedAt
         };
     }
-    
+
     private static BoardTasksResponse ToMyTaskDto(BoardTask t)
     {
         return new BoardTasksResponse
@@ -362,6 +387,7 @@ public class BoardTaskService: IBoardTaskService
             AssignedUserId = t.AssignedUserId,
             CreatorId = t.CreatorId,
             DueDate = t.DueDate,
+            Priority = t.Priority,
             Order = t.Order,
             CreatedAt = t.CreatedAt,
             UpdatedAt = t.UpdatedAt

@@ -1,4 +1,6 @@
-﻿namespace Domain.DTO;
+﻿using SEM.Domain.Models;
+
+namespace Domain.DTO;
 
 public class BoardTaskUpdateRequest
 {
@@ -6,4 +8,5 @@ public class BoardTaskUpdateRequest
     public string? Description { get; set; }
     public Guid? AssigneeId { get; set; }
     public DateTime? Deadline { get; set; }
+    public BoardTaskPriority? Priority { get; set; }
 }

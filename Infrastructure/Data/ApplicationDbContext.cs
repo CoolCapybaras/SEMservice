@@ -115,6 +115,16 @@ public class ApplicationDbContext : DbContext
             .Property(u => u.NotificationChannel)
             .HasConversion<int>();
 
+        modelBuilder.Entity<BoardTask>()
+            .Property(t => t.Priority)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<BoardTask>()
+            .HasOne(t => t.AssignedUser)
+            .WithMany()
+            .HasForeignKey(t => t.AssignedUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<BoardTaskComment>()
             .HasOne(c => c.Task)
             .WithMany(t => t.Comments)

@@ -27,6 +27,7 @@ public class BoardTaskRepository: IBoardTaskRepository
         return await _context.BoardTasks
             .Where(t => t.ColumnId == columnId)
             .Include(t => t.Column)
+            .Include(t => t.AssignedUser)
             .OrderBy(t => t.Order)
             .ToListAsync();
     }
@@ -35,6 +36,7 @@ public class BoardTaskRepository: IBoardTaskRepository
     {
         return await _context.BoardTasks
             .Include(t => t.Column)
+            .Include(t => t.AssignedUser)
             .FirstOrDefaultAsync(t => t.Id == taskId);
     }
 
