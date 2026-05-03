@@ -24,14 +24,16 @@ public class EventAttachmentRepository : IEventAttachmentRepository
     public async Task<List<EventAttachment>> GetByEventIdAsync(Guid eventId)
     {
         return await _context.EventAttachments
+            .Include(a => a.Author)
             .Where(a => a.EventId == eventId)
-            .OrderByDescending(a => a.CreatedAt)
             .ToListAsync();
     }
 
     public async Task<EventAttachment?> GetByIdAsync(Guid attachmentId)
     {
-        return await _context.EventAttachments.FirstOrDefaultAsync(a => a.Id == attachmentId);
+        return await _context.EventAttachments
+            .Include(a => a.Author)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId);
     }
 
     public async Task DeleteAsync(EventAttachment attachment)

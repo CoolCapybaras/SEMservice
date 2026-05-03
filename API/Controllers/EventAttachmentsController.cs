@@ -23,10 +23,22 @@ public class EventAttachmentsController : ControllerBase
     /// </summary>
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetAll(Guid eventId)
+    public async Task<IActionResult> GetAll(Guid eventId, [FromQuery] EventAttachmentListQuery? query)
     {
         var userId = GetUserIdFromToken();
-        var result = await _attachmentService.GetByEventAsync(eventId, userId);
+        var result = await _attachmentService.GetByEventAsync(eventId, userId, query);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>
+    /// Динамические значения для фильтра: расширения файлов в этом мероприятии, площадки ссылок, авторы.
+    /// </summary>
+    [HttpGet("facets")]
+    [Authorize]
+    public async Task<IActionResult> GetFacets(Guid eventId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _attachmentService.GetFacetsAsync(eventId, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
 
