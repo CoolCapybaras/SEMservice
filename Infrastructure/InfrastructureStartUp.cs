@@ -23,6 +23,7 @@ public static class InfrastructureStartUp
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IInviteRepository, InviteRepository>();
         services.AddScoped<IAdminRepository, AdminRepository>();
+        services.AddScoped<IGlobalSearchRepository, GlobalSearchRepository>();
         services.AddScoped<IBoardColumnRepository, BoardColumnRepository>();
         services.AddScoped<IBoardTaskRepository, BoardTaskRepository>();
         services.AddScoped<IBoardTaskCommentRepository, BoardTaskCommentRepository>();

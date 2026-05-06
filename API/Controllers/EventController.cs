@@ -286,7 +286,36 @@ public class EventController : ControllerBase
         var result = await _eventService.GetEventPhotoByIdAsync(eventId, photoId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
+
+    /// <summary>
+    /// Скачать медиа (фото/видео) мероприятия по ID
+    /// </summary>
+    [HttpGet("{eventId}/photos/{photoId}/download")]
+    [Authorize]
+    public async Task<IActionResult> DownloadEventPhoto(Guid eventId, Guid photoId)
+    {
+        var result = await _eventService.DownloadEventPhotoAsync(eventId, photoId);
+        if (!result.Success || result.Data == null)
+            return BadRequest(new { error = result.Error });
+
+        return File(result.Data.Bytes, result.Data.ContentType, result.Data.FileName);
+    }
     
+    /// <summary>
+    /// Скачать несколько медиа (фото/видео) мероприятия одним архивом .zip
+    /// </summary>
+    [HttpPost("{eventId}/photos/download")]
+    [Authorize]
+    public async Task<IActionResult> DownloadEventPhotosArchive(Guid eventId, [FromBody] List<Guid> photoIds)
+    {
+        var result = await _eventService.DownloadEventPhotosArchiveAsync(eventId, photoIds);
+        if (!result.Success || result.Data == null)
+            return BadRequest(new { error = result.Error });
+
+        return File(result.Data.Bytes, result.Data.ContentType, result.Data.FileName);
+    }
+
+
     /// <summary>
     /// Удалить фото мероприятия
     /// </summary>

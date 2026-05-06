@@ -33,6 +33,7 @@ public class UserProfileService : IUserProfileService
         profile.Profession = updateModel.Profession ?? profile.Profession;
         profile.PhoneNumber = updateModel.PhoneNumber ?? profile.PhoneNumber;
         profile.Telegram = updateModel.Telegram ?? profile.Telegram;
+        profile.Vk = updateModel.Vk ?? profile.Vk;
         profile.City = updateModel.City ?? profile.City;
         if (updateModel.Theme.HasValue)
             profile.Theme = updateModel.Theme.Value;
@@ -123,6 +124,7 @@ public class UserProfileService : IUserProfileService
             Profession = profile.Profession,
             PhoneNumber = profile.PhoneNumber,
             Telegram = profile.Telegram,
+            Vk = profile.Vk,
             City = profile.City,
             UserPrivilege = profile.UserPrivilege,
             AvatarUrl = profile.AvatarUrl

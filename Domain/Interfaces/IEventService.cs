@@ -33,6 +33,8 @@ public interface IEventService
     Task<ServiceResult<bool>> DeleteCategoryInEventAsync(Guid eventId, Guid categoryId, Guid userId);
     Task<ServiceResult<Event>> FinishEventAsync(Guid Eventid, Guid userId);
     Task<ServiceResult<string>> GetEventPhotoByIdAsync(Guid eventId, Guid photoId);
+    Task<ServiceResult<DownloadMediaResult>> DownloadEventPhotoAsync(Guid eventId, Guid photoId);
+    Task<ServiceResult<DownloadMediaResult>> DownloadEventPhotosArchiveAsync(Guid eventId, IReadOnlyCollection<Guid> photoIds);
     Task<ServiceResult<bool>> DeleteEventPhotoAsync(Guid eventId, Guid photoId, Guid userId);
     Task<ServiceResult<bool>> DeleteContact(Guid eventId, Guid userId, Guid currentUserId);
     Task<ServiceResult<bool>> DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds, Guid userId);

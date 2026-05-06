@@ -32,4 +32,9 @@ public class EventRequest
     public string Color { get; set; } = null!;
     
     public int? BufferDays { get; set; }
+
+    /// <summary>
+    /// Если true — создаём мероприятие сразу в Published. Если false — создаём как черновик (Draft).
+    /// </summary>
+    public bool Publish { get; set; } = true;
 }

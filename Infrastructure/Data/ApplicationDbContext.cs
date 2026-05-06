@@ -42,6 +42,8 @@ public class ApplicationDbContext : DbContext
     
     public DbSet<EventNote> EventNotes { get; set; }
 
+    public DbSet<SearchQueryHistory> SearchQueryHistories { get; set; }
+
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
@@ -170,5 +172,17 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(n => n.AuthorId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SearchQueryHistory>()
+            .HasIndex(x => new { x.UserId, x.NormalizedQuery })
+            .IsUnique();
+
+        modelBuilder.Entity<SearchQueryHistory>()
+            .Property(x => x.Query)
+            .HasMaxLength(256);
+
+        modelBuilder.Entity<SearchQueryHistory>()
+            .Property(x => x.NormalizedQuery)
+            .HasMaxLength(256);
     }
 }

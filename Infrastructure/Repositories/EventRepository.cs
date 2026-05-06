@@ -40,7 +40,7 @@ public class EventRepository : IEventRepository
                 Location = request.Location,
                 Auditorium = request.Auditorium,
                 VenueFormat = request.VenueFormat,
-                LifecycleState = EventLifecycleState.Draft,
+                LifecycleState = request.Publish ? EventLifecycleState.Published : EventLifecycleState.Draft,
                 IsCancelled = false,
                 CancelledAt = null,
                 BufferDays = request.BufferDays ?? 14,
@@ -594,6 +594,23 @@ public class EventRepository : IEventRepository
     {
         var photo = await _context.EventPhotos.Where(p => p.EventId == eventId).FirstOrDefaultAsync(p => p.Id == photoId);
         return photo.FilePath;
+    }
+    
+    public async Task<EventPhoto?> GetEventPhotoEntityAsync(Guid eventId, Guid photoId)
+    {
+        return await _context.EventPhotos
+            .Where(p => p.EventId == eventId)
+            .FirstOrDefaultAsync(p => p.Id == photoId);
+    }
+    
+    public async Task<List<EventPhoto>> GetEventPhotoEntitiesAsync(Guid eventId, IReadOnlyCollection<Guid> photoIds)
+    {
+        if (photoIds.Count == 0)
+            return new List<EventPhoto>();
+
+        return await _context.EventPhotos
+            .Where(p => p.EventId == eventId && photoIds.Contains(p.Id))
+            .ToListAsync();
     }
 
     public async Task DeleteEventPhotoAsync(Guid eventId, Guid photoId)

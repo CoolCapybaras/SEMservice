@@ -103,6 +103,7 @@ public class AdminRepository: IAdminRepository
             Profession = model.Profession,
             PhoneNumber = model.PhoneNumber,
             Telegram = model.Telegram,
+            Vk = model.Vk,
             City = model.City,
             UserPrivilege = model.UserPrivilege.ToString(),
             AvatarUrl = model.AvatarUrl

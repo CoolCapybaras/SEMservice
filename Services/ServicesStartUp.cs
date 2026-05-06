@@ -15,6 +15,7 @@ public static class ServicesStartUp
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IInviteService, InviteService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IGlobalSearchService, GlobalSearchService>();
         services.AddScoped<IBoardColumnService, BoardColumnService>();
         services.AddScoped<IBoardTaskService, BoardTaskService>();
         services.AddScoped<IBoardService, BoardService>();

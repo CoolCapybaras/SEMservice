@@ -33,6 +33,8 @@ public interface IEventRepository
     Task<List<ContactResponse>> GetContacts(Guid eventId);
     Task<Event> FinishEventAsync(Event @event);
     Task<string> GetEventPhotoByIdAsync(Guid eventId, Guid photoId);
+    Task<EventPhoto?> GetEventPhotoEntityAsync(Guid eventId, Guid photoId);
+    Task<List<EventPhoto>> GetEventPhotoEntitiesAsync(Guid eventId, IReadOnlyCollection<Guid> photoIds);
     Task DeleteEventPhotoAsync(Guid eventId, Guid photoId);
     Task DeleteContact(Guid eventId, Guid userId);
     Task DeleteEventPhotosAsync(Guid eventId, List<Guid> photoIds);

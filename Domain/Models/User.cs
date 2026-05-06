@@ -26,6 +26,8 @@ public class User
     
     public string? Telegram { get; set; }
     
+    public string? Vk { get; set; }
+    
     public string? City { get; set; }
 
     public string? ResetToken { get; set; }

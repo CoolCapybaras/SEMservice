@@ -4,6 +4,7 @@ using Domain.Interfaces;
 using Microsoft.AspNetCore.Http;
 using SEM.Domain.Interfaces;
 using SEM.Domain.Models;
+using System.IO.Compression;
 
 namespace SEM.Services;
 
@@ -35,8 +36,8 @@ public class EventService : IEventService
             return ServiceResult<Event>.Fail("Недопустимый цвет мероприятия");
         }
 
-        if (request.Types == null || request.Types.Count == 0)
-            return ServiceResult<Event>.Fail("Укажите хотя бы один тип мероприятия");
+        if (request.Publish && (request.Types == null || request.Types.Count == 0))
+            return ServiceResult<Event>.Fail("Укажите хотя бы один тип мероприятия для публикации");
 
         if (!string.IsNullOrEmpty(request.Description) && request.Description.Length > 4096)
             return ServiceResult<Event>.Fail("Описание не должно превышать 4096 символов");
@@ -50,7 +51,34 @@ public class EventService : IEventService
         request.BufferDays = bufferDays;
 
         var createdEvent = await _eventRepository.AddEventAsync(request);
+
+        if (request.Publish)
+            await NotifyEventPublishedOnCreateAsync(createdEvent, request.Categories ?? new List<string>());
+
         return ServiceResult<Event>.Ok(createdEvent);
+    }
+
+    private async Task NotifyEventPublishedOnCreateAsync(Event evt, IReadOnlyCollection<string> categories)
+    {
+        var recipients = await _eventRepository.GetPublicationSubscribersAsync(evt.ResponsiblePersonId, categories, evt.Id);
+        foreach (var userId in recipients.Distinct())
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Type = "EventPublished",
+                Payload = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    event_id = evt.Id,
+                    event_name = evt.Name,
+                    start_at = evt.StartDate
+                }),
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationService.AddNotificationIfEnabledAsync(notification);
+        }
     }
 
     public async Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId)
@@ -380,6 +408,9 @@ public class EventService : IEventService
         if (file == null || file.Length == 0)
             return ServiceResult<string>.Fail("Файл не загружен");
 
+        if (!IsAllowedMedia(file))
+            return ServiceResult<string>.Fail("Разрешены только файлы фото и видео");
+
         if (!CanUploadEventMedia(_event))
             return ServiceResult<string>.Fail("Загрузка медиа доступна только после начала и до архивации мероприятия");
 
@@ -398,6 +429,24 @@ public class EventService : IEventService
         await _eventRepository.AddEventPhotoAsync(new EventPhoto { Id = Guid.NewGuid(), EventId = eventId, FilePath = relativePath });
 
         return ServiceResult<string>.Ok(relativePath);
+    }
+
+    private static bool IsAllowedMedia(IFormFile file)
+    {
+        var contentType = file.ContentType?.Trim();
+        var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+
+        var byContentType =
+            !string.IsNullOrWhiteSpace(contentType) &&
+            (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
+             contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase));
+
+        // Бэкап-проверка по расширению, чтобы не принимать произвольные файлы при пустом/битом ContentType.
+        var byExtension = ext is
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".heic" or ".heif" or
+            ".mp4" or ".mov" or ".m4v" or ".webm" or ".avi" or ".mkv";
+
+        return byContentType && byExtension;
     }
 
     public async Task<ServiceResult<bool>> AddContact(Guid eventId, Guid userId, Guid currentUserId)
@@ -444,6 +493,105 @@ public class EventService : IEventService
         if (res == null)
             return ServiceResult<string>.Ok("Фото не найдено");
         return ServiceResult<string>.Ok(res);
+    }
+    
+    public async Task<ServiceResult<DownloadMediaResult>> DownloadEventPhotoAsync(Guid eventId, Guid photoId)
+    {
+        var evt = await _eventRepository.GetEventByIdAsync(eventId);
+        if (evt == null)
+            return ServiceResult<DownloadMediaResult>.Fail("Мероприятие не найдено");
+
+        var photo = await _eventRepository.GetEventPhotoEntityAsync(eventId, photoId);
+        if (photo == null || string.IsNullOrWhiteSpace(photo.FilePath))
+            return ServiceResult<DownloadMediaResult>.Fail("Файл не найден");
+
+        // FilePath хранится как "/uploads/<guid>.<ext>"
+        var relative = photo.FilePath.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString());
+        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", relative);
+        if (!File.Exists(fullPath))
+            return ServiceResult<DownloadMediaResult>.Fail("Файл не найден");
+
+        var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            ".heic" => "image/heic",
+            ".heif" => "image/heif",
+            ".mp4" => "video/mp4",
+            ".mov" => "video/quicktime",
+            ".m4v" => "video/x-m4v",
+            ".webm" => "video/webm",
+            ".avi" => "video/x-msvideo",
+            ".mkv" => "video/x-matroska",
+            _ => "application/octet-stream"
+        };
+
+        var bytes = await File.ReadAllBytesAsync(fullPath);
+        var fileName = Path.GetFileName(fullPath);
+        return ServiceResult<DownloadMediaResult>.Ok(new DownloadMediaResult
+        {
+            Bytes = bytes,
+            ContentType = contentType,
+            FileName = fileName
+        });
+    }
+    
+    public async Task<ServiceResult<DownloadMediaResult>> DownloadEventPhotosArchiveAsync(Guid eventId, IReadOnlyCollection<Guid> photoIds)
+    {
+        if (photoIds == null || photoIds.Count == 0)
+            return ServiceResult<DownloadMediaResult>.Fail("Список файлов пуст");
+
+        // Базовая защита от слишком больших запросов.
+        if (photoIds.Count > 50)
+            return ServiceResult<DownloadMediaResult>.Fail("Слишком много файлов для скачивания за один раз");
+
+        var evt = await _eventRepository.GetEventByIdAsync(eventId);
+        if (evt == null)
+            return ServiceResult<DownloadMediaResult>.Fail("Мероприятие не найдено");
+
+        var photos = await _eventRepository.GetEventPhotoEntitiesAsync(eventId, photoIds);
+        if (photos.Count == 0)
+            return ServiceResult<DownloadMediaResult>.Fail("Файлы не найдены");
+
+        await using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var photo in photos)
+            {
+                if (string.IsNullOrWhiteSpace(photo.FilePath))
+                    continue;
+
+                var relative = photo.FilePath.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString());
+                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", relative);
+                if (!File.Exists(fullPath))
+                    continue;
+
+                var entryName = Path.GetFileName(fullPath);
+                // на случай коллизий имён
+                if (zip.GetEntry(entryName) != null)
+                    entryName = $"{photo.Id}{Path.GetExtension(fullPath)}";
+
+                var entry = zip.CreateEntry(entryName, CompressionLevel.Fastest);
+                await using var entryStream = entry.Open();
+                await using var fileStream = File.OpenRead(fullPath);
+                await fileStream.CopyToAsync(entryStream);
+            }
+        }
+
+        var bytes = ms.ToArray();
+        if (bytes.Length == 0)
+            return ServiceResult<DownloadMediaResult>.Fail("Не удалось собрать архив");
+
+        return ServiceResult<DownloadMediaResult>.Ok(new DownloadMediaResult
+        {
+            Bytes = bytes,
+            ContentType = "application/zip",
+            FileName = $"event-{eventId}-media.zip"
+        });
     }
 
     public async Task<ServiceResult<bool>> DeleteEventPhotoAsync(Guid eventId, Guid photoId, Guid userId)

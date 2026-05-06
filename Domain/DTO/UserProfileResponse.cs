@@ -8,6 +8,7 @@ public class UserProfileResponse
     public string? Profession { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Telegram { get; set; }
+    public string? Vk { get; set; }
     public string? City { get; set; }
     
     public string UserPrivilege { get; set; }

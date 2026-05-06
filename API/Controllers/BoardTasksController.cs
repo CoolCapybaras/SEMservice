@@ -93,18 +93,6 @@ public class BoardTasksController : ControllerBase
     }
     
     /// <summary>
-    /// Получить мои назначенные задачи
-    /// </summary>
-    [HttpGet("my-tasks")]
-    [Authorize]
-    public async Task<IActionResult> GetMyTasks()
-    {
-        var userId = GetUserIdFromToken();
-        var result = await _service.GetCurrentUserTasksAsync(userId);
-        return Ok(result.Data);
-    }
-    
-    /// <summary>
     /// Получить мои назначенные задачи в рамках мероприятия
     /// </summary>
     [HttpGet("event/my-tasks")]
