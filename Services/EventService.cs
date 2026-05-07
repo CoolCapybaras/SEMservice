@@ -311,6 +311,34 @@ public class EventService : IEventService
         var subs = await _eventRepository.GetAllSuscribersWithoutOffsetAsync(eventId, name, role);
         return ServiceResult<List<EventUserResponse>>.Ok(subs);
     }
+    
+    public async Task<ServiceResult<List<AssigneeCandidateDto>>> GetAssigneeCandidatesAsync(Guid eventId, Guid userId)
+    {
+        var evt = await _eventRepository.GetEventByIdAsync(eventId);
+        if (evt == null)
+            return ServiceResult<List<AssigneeCandidateDto>>.Fail("Мероприятие не найдено");
+
+        var isParticipant = userId == evt.ResponsiblePersonId || evt.EventRoles.Any(r => r.UserId == userId);
+        if (!isParticipant)
+            return ServiceResult<List<AssigneeCandidateDto>>.Fail("Вы не являетесь участником мероприятия");
+
+        var candidates = evt.EventRoles
+            .Where(r => r.User != null)
+            .Where(r => r.ParticipantRole is ParticipantRoleKind.Editor or ParticipantRoleKind.Assistant)
+            .Select(r => new AssigneeCandidateDto
+            {
+                Id = r.UserId,
+                Name = $"{r.User.LastName} {r.User.FirstName}".Trim(),
+                Profession = r.User.Profession,
+                AvatarUrl = r.User.AvatarUrl,
+                Role = r.ParticipantRole.ToString()
+            })
+            .OrderBy(x => x.Name)
+            .ToList();
+
+        return ServiceResult<List<AssigneeCandidateDto>>.Ok(candidates);
+    }
+
 
     public async Task<ServiceResult<Event>> UpdateEventAsync(Guid eventId, EventUpdateRequest request, Guid userId)
     {

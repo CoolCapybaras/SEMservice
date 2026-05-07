@@ -170,6 +170,18 @@ public class EventController : ControllerBase
     }
     
     /// <summary>
+    /// Получить кандидатов в исполнители задач (Editor/Assistant) для мероприятия
+    /// </summary>
+    [HttpGet("{eventId}/board/assignees")]
+    [Authorize]
+    public async Task<IActionResult> GetAssigneeCandidates(Guid eventId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.GetAssigneeCandidatesAsync(eventId, userId);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
+    
+    /// <summary>
     /// Обновить данные о мероприятии
     /// </summary>
     [HttpPut("{eventId}")]

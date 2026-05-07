@@ -22,6 +22,7 @@ public interface IEventService
     Task<ServiceResult<List<EventFixedRoleInfoDto>>> GetRolesByEvent(Guid eventId, int count, int offset);
     Task<ServiceResult<EventUserAndCountResponse>> GetAllSuscribersAsync(Guid eventId, string? name, string? role, int count, int offset);
     Task<ServiceResult<List<EventUserResponse>>> GetAllSuscribersWithoutOffsetAsync(Guid eventId, string? name, string? role);
+    Task<ServiceResult<List<AssigneeCandidateDto>>> GetAssigneeCandidatesAsync(Guid eventId, Guid userId);
     Task<ServiceResult<Event>> UpdateEventAsync(Guid eventId, EventUpdateRequest request, Guid userId);
     Task<ServiceResult<Event>> UpdateEventLifecycleStateAsync(Guid eventId, EventLifecycleUpdateRequest request, Guid userId);
     Task<ServiceResult<Event>> SetEventCancellationAsync(Guid eventId, EventCancellationRequest request, Guid userId);
