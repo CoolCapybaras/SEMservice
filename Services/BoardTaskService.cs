@@ -380,6 +380,7 @@ public class BoardTaskService : IBoardTaskService
             Id = t.Id,
             EventId = t.Column.EventId,
             EventName = t.Column.Event?.Name ?? string.Empty,
+            EventAvatarUrl = t.Column.Event?.Avatar ?? string.Empty,
             ColumnId = t.ColumnId,
             Status = t.Column.Name,
             Title = t.Title,
