@@ -8,4 +8,5 @@ public interface IEventNoteRepository
     Task<EventNote?> GetByIdAsync(Guid noteId);
     Task<List<EventNote>> GetByEventIdAsync(Guid eventId);
     Task<EventNote> UpdateAsync(EventNote note);
+    Task DeleteAsync(EventNote note);
 }

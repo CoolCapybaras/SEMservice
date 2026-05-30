@@ -13,5 +13,7 @@ public interface IUserProfileRepository
     Task<List<Event>> GetSubscribedEventsAsync(Guid userId);
     Task<List<User>> GetOrganizers();
     
+    Task<List<UserProfileResponse>> GetUsersListAsync(UserListRequest request);
+    
     Task<SystemRoleResponse> GetSystemRoleAsync(Guid userId);
 } 

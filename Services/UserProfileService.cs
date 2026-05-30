@@ -91,8 +91,15 @@ public class UserProfileService : IUserProfileService
 
     public async Task<ServiceResult<List<Event>>> GetSubscribedEventsAsync(Guid userId)
     {
-        var _event = await _profileRepository.GetSubscribedEventsAsync(userId);
-        return ServiceResult<List<Event>>.Ok(_event);
+        var events = await _profileRepository.GetSubscribedEventsAsync(userId);
+        EventParticipantRoleResolver.ApplyMyRole(events, userId);
+        return ServiceResult<List<Event>>.Ok(events);
+    }
+
+    public async Task<ServiceResult<List<UserProfileResponse>>> GetUsersListAsync(UserListRequest request)
+    {
+        var users = await _profileRepository.GetUsersListAsync(request);
+        return ServiceResult<List<UserProfileResponse>>.Ok(users);
     }
 
     public async Task<ServiceResult<List<User>>> GetOrganizersAsync()

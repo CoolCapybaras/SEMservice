@@ -12,6 +12,7 @@ public interface IUserProfileService
     Task<ServiceResult<String>> AddAvatarAsync(Guid userId, IFormFile? file);
     Task<ServiceResult<List<Event>>> GetSubscribedEventsAsync(Guid userId);
     Task<ServiceResult<List<User>>> GetOrganizersAsync();
+    Task<ServiceResult<List<UserProfileResponse>>> GetUsersListAsync(UserListRequest request);
     
     Task<ServiceResult<SystemRoleResponse>> GetSystemRoleAsync(Guid userId);
 } 

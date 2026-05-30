@@ -26,6 +26,20 @@ public class ProfileController : ControllerBase
     }
     
     /// <summary>
+    /// Получить список пользователей
+    /// </summary>
+    [HttpGet("list")]
+    [Authorize]
+    public async Task<IActionResult> GetUsersList([FromQuery] UserListRequest request)
+    {
+        var result = await _profileService.GetUsersListAsync(request);
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok(new { result = result.Data });
+    }
+    
+    /// <summary>
     /// Получить профиль текущего пользователя
     /// </summary>
     [HttpGet]

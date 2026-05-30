@@ -119,6 +119,8 @@ public class EventRepository : IEventRepository
         return await query
             .Include(e => e.EventCategories)
             .ThenInclude(ec => ec.Category)
+            .Include(e => e.SelectedTypes)
+            .Include(e => e.EventRoles)
             .ToListAsync();
     }
     
@@ -132,6 +134,7 @@ public class EventRepository : IEventRepository
         return await query
             .Include(e => e.EventCategories)
             .ThenInclude(ec => ec.Category)
+            .Include(e => e.SelectedTypes)
             .Include(e => e.EventRoles)
             .ToListAsync();
     }

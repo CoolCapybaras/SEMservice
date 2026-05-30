@@ -24,7 +24,7 @@ public class EventPostService : IEventPostService
 
     public async Task<ServiceResult<EventPost>> AddPostAsync(Guid eventId, Guid authorId, string title, string text)
     {
-        var @event = await _eventService.GetEventByIdAsync(eventId);
+        var @event = await _eventService.GetEventByIdAsync(eventId, authorId);
         if (!@event.Success || @event.Data == null)
             return ServiceResult<EventPost>.Fail("Мероприятие не найдено");
 
@@ -77,8 +77,8 @@ public class EventPostService : IEventPostService
 
     public async Task<ServiceResult<EventPost?>> GetPostByIdAsync(Guid eventId, Guid postId)
     {
-        var curEvent = await _eventService.GetEventByIdAsync(eventId);
-        if (curEvent == null)
+        var curEvent = await _eventService.GetEventByIdAsync(eventId, Guid.Empty);
+        if (!curEvent.Success)
             return ServiceResult<EventPost>.Fail("Мероприятие не найдено");
         var post = await _eventPostRepository.GetPostByIdAsync(eventId, postId);
         if (post == null)
@@ -97,8 +97,8 @@ public class EventPostService : IEventPostService
     
     public async Task<ServiceResult<bool>> DeletePostAsync(Guid postId, Guid eventId, Guid authorId)
     {
-        var @event = await _eventService.GetEventByIdAsync(eventId);
-        if (@event == null)
+        var @event = await _eventService.GetEventByIdAsync(eventId, authorId);
+        if (!@event.Success || @event.Data == null)
             return ServiceResult<bool>.Fail("Мероприятие не найдено");
 
         if (@event.Data.ResponsiblePersonId != authorId)

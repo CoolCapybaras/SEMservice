@@ -73,6 +73,7 @@ public class BoardTaskRepository: IBoardTaskRepository
     {
         return await _context.BoardTasks
             .Where(t => t.AssignedUserId == userId)
+            .Include(t => t.AssignedUser)
             .Include(t => t.Column)
             .ThenInclude(c => c.Event)
             .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
@@ -84,6 +85,7 @@ public class BoardTaskRepository: IBoardTaskRepository
     {
         return await _context.BoardTasks
             .Where(t => t.AssignedUserId == userId && t.Column.EventId == eventId)
+            .Include(t => t.AssignedUser)
             .Include(t => t.Column)
             .ThenInclude(c => c.Event)
             .OrderBy(t => t.DueDate ?? DateTime.MaxValue)

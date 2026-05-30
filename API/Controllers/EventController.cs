@@ -39,7 +39,8 @@ public class EventController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetEventById(Guid eventId)
     {
-        var result = await _eventService.GetEventByIdAsync(eventId);
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.GetEventByIdAsync(eventId, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
 
@@ -50,7 +51,8 @@ public class EventController : ControllerBase
     [Authorize]
     public async Task<IActionResult> SearchEvents([FromQuery] SearchRequest request)
     {
-        var result = await _eventService.SearchEventsAsync(request);
+        var userId = GetUserIdFromToken();
+        var result = await _eventService.SearchEventsAsync(request, userId);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
     

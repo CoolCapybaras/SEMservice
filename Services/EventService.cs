@@ -81,7 +81,7 @@ public class EventService : IEventService
         }
     }
 
-    public async Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId)
+     public async Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId, Guid currentUserId)
     {
         var _event = await _eventRepository.GetEventByIdAsync(eventId);
         if (_event == null)
@@ -89,18 +89,19 @@ public class EventService : IEventService
 
         var participants = _event.EventRoles?
             .Where(er => er.User != null)
-            .Select(er => new UserResponse()
+            .Select(er => new EventParticipantResponse
             {
                 Id = er.User.Id,
                 LastName = er.User.LastName,
                 FirstName = er.User.FirstName,
                 Profession = er.User.Profession,
                 AvatarUrl = er.User.AvatarUrl,
-                IsContact = er.IsContact
+                IsContact = er.IsContact,
+                ParticipantRole = er.ParticipantRole
             })
             .Take(7)
             .ToList()
-        ?? new List<UserResponse>();
+        ?? new List<EventParticipantResponse>();
         var response = new EventResponse
         {
             Id = _event.Id,
@@ -122,15 +123,18 @@ public class EventService : IEventService
             ParticipantsCount = participants.Count,
             LifecycleState = _event.LifecycleState
             ,IsCancelled = _event.IsCancelled
-            ,BufferDays = _event.BufferDays
+            ,BufferDays = _event.BufferDays,
+            MyParticipantRole = EventParticipantRoleResolver.Resolve(_event, currentUserId)
         };
 
         return ServiceResult<EventResponse>.Ok(response);
     }
 
-    public async Task<ServiceResult<List<Event>>> SearchEventsAsync(SearchRequest request)
+
+    public async Task<ServiceResult<List<Event>>> SearchEventsAsync(SearchRequest request, Guid currentUserId)
     {
         var events = await _eventRepository.SearchEventsAsync(request);
+        EventParticipantRoleResolver.ApplyMyRole(events, currentUserId);
         return ServiceResult<List<Event>>.Ok(events);
     }
 
@@ -144,6 +148,7 @@ public class EventService : IEventService
             var role = e.EventRoles.FirstOrDefault(r => r.UserId == userId)?.ParticipantRole;
             return role == ParticipantRoleKind.Editor || role == ParticipantRoleKind.Organizer;
         }).ToList();
+        EventParticipantRoleResolver.ApplyMyRole(visible, userId);
         return ServiceResult<List<Event>>.Ok(visible);
     }
 
@@ -438,9 +443,6 @@ public class EventService : IEventService
 
         if (!IsAllowedMedia(file))
             return ServiceResult<string>.Fail("Разрешены только файлы фото и видео");
-
-        if (!CanUploadEventMedia(_event))
-            return ServiceResult<string>.Fail("Загрузка медиа доступна только после начала и до архивации мероприятия");
 
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
         Directory.CreateDirectory(uploadsFolder);
@@ -746,13 +748,6 @@ public class EventService : IEventService
         if (evt.LifecycleState == EventLifecycleState.Archived)
             return false;
         return DateTime.UtcNow < evt.StartDate;
-    }
-
-    private static bool CanUploadEventMedia(Event evt)
-    {
-        if (evt.LifecycleState == EventLifecycleState.Archived)
-            return false;
-        return DateTime.UtcNow >= evt.StartDate;
     }
 
     private static string? ValidateLifecycleTransition(Event evt, EventLifecycleState next)

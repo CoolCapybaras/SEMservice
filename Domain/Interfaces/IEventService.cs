@@ -8,8 +8,8 @@ namespace SEM.Domain.Interfaces;
 public interface IEventService
 {
     Task<ServiceResult<Event>> CreateEventAsync(EventRequest newEvent, Guid modId);
-    Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId);
-    Task<ServiceResult<List<Event>>> SearchEventsAsync(SearchRequest request);
+    Task<ServiceResult<EventResponse>> GetEventByIdAsync(Guid eventId, Guid currentUserId);
+    Task<ServiceResult<List<Event>>> SearchEventsAsync(SearchRequest request, Guid currentUserId);
     Task<ServiceResult<List<Event>>> SearchArchivedEventsAsync(SearchRequest request, Guid userId);
     Task<ServiceResult<List<CategoryResponse>>> GetEventCategoriesAsync(Guid eventId);
     Task<ServiceResult<List<Event>>> GetMyEventsAsync(Guid userId);

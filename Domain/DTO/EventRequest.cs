@@ -30,8 +30,8 @@ public class EventRequest
     public int? MaxParticipants { get; set; }
 
     public string Color { get; set; } = null!;
-    
-    public int? BufferDays { get; set; }
+
+    public int? BufferDays { get; set; } = 14;
 
     /// <summary>
     /// Если true — создаём мероприятие сразу в Published. Если false — создаём как черновик (Draft).

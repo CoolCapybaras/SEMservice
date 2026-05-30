@@ -43,6 +43,15 @@ public class EventNotesController : ControllerBase
         var result = await _noteService.UpdateAsync(eventId, noteId, userId, request.Text);
         return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
     }
+    
+    [HttpDelete("{noteId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> Delete(Guid eventId, Guid noteId)
+    {
+        var userId = GetUserIdFromToken();
+        var result = await _noteService.DeleteAsync(eventId, noteId, userId);
+        return result.Success ? Ok(new { result = result.Data }) : BadRequest(new { error = result.Error });
+    }
 
     private Guid GetUserIdFromToken()
     {

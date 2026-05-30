@@ -386,6 +386,8 @@ public class BoardTaskService : IBoardTaskService
             Title = t.Title,
             Description = t.Description,
             AssignedUserId = t.AssignedUserId,
+            AssigneeDisplayName = t.AssignedUser != null ? UserDisplayName(t.AssignedUser) : null,
+            AssigneeAvatarUrl = t.AssignedUser?.AvatarUrl,
             CreatorId = t.CreatorId,
             DueDate = t.DueDate,
             Priority = t.Priority,

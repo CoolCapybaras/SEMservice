@@ -43,4 +43,10 @@ public class EventNoteRepository : IEventNoteRepository
         await _context.SaveChangesAsync();
         return note;
     }
+    
+    public async Task DeleteAsync(EventNote note)
+    {
+        _context.EventNotes.Remove(note);
+        await _context.SaveChangesAsync();
+    }
 }

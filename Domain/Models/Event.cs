@@ -74,6 +74,10 @@ public class Event
     [JsonPropertyName("eventTypes")]
     public ICollection<EventTypeKind> EventTypeKinds =>
         SelectedTypes?.Select(t => t.TypeKind).ToList() ?? new List<EventTypeKind>();
+    
+    [NotMapped]
+    [JsonPropertyName("myParticipantRole")]
+    public ParticipantRoleKind? MyParticipantRole { get; set; }
 
     [JsonIgnore]
     public ICollection<EventRole> EventRoles { get; set; } = new List<EventRole>();

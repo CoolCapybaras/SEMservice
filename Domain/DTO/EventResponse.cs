@@ -38,9 +38,11 @@ public class EventResponse
     
     public int BufferDays { get; set; }
 
-    public List<UserResponse> Participants { get; set; } = new();
+    public List<EventParticipantResponse> Participants { get; set; } = new();
 
     public int ParticipantsCount { get; set; }
 
     public string Avatar { get; set; } = null!;
+    
+    public ParticipantRoleKind? MyParticipantRole { get; set; }
 }

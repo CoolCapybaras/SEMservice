@@ -49,20 +49,55 @@ public class UserProfileRepository : IUserProfileRepository
 
     public async Task<List<Event>> GetSubscribedEventsAsync(Guid userId)
     {
-        var eventsUser = await _dbContext.EventRoles.Where(e => e.UserId == userId).ToListAsync();
-        var result = new List<Event>();
-        foreach (var eventUser in eventsUser)
-        {
-            var _event = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventUser.EventId);
-            result.Add(_event);
-        }
-        return result;
+        return await _dbContext.Events
+            .Where(e => e.EventRoles.Any(r => r.UserId == userId))
+            .Include(e => e.EventCategories)
+            .ThenInclude(ec => ec.Category)
+            .Include(e => e.SelectedTypes)
+            .Include(e => e.EventRoles)
+            .OrderBy(e => e.StartDate)
+            .ToListAsync();
     }
     
     public async Task<List<User>> GetOrganizers()
     {
-        var modUsers = await _dbContext.Users.Where(e => e.UserPrivilege == UserPrivilege.ORGANIZER).ToListAsync();
-        return modUsers;
+        return await _dbContext.Users
+            .Where(e => e.UserPrivilege == UserPrivilege.ORGANIZER || e.UserPrivilege == UserPrivilege.ADMIN)
+            .ToListAsync();
+    }
+
+    public async Task<List<UserProfileResponse>> GetUsersListAsync(UserListRequest request)
+    {
+        var query = _dbContext.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.Q))
+        {
+            var pattern = $"%{request.Q.Trim()}%";
+            query = query.Where(u =>
+                (u.FirstName != null && EF.Functions.ILike(u.FirstName, pattern)) ||
+                (u.LastName != null && EF.Functions.ILike(u.LastName, pattern)) ||
+                (u.Profession != null && EF.Functions.ILike(u.Profession, pattern)) ||
+                (u.City != null && EF.Functions.ILike(u.City, pattern)));
+        }
+
+        var count = request.Count <= 0 ? 20 : Math.Min(request.Count, 100);
+
+        return await query
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .Skip(request.Offset)
+            .Take(count)
+            .Select(u => new UserProfileResponse
+            {
+                Id = u.Id,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Profession = u.Profession,
+                City = u.City,
+                AvatarUrl = u.AvatarUrl,
+                UserPrivilege = u.UserPrivilege.ToString()
+            })
+            .ToListAsync();
     }
 
     public async Task<SystemRoleResponse> GetSystemRoleAsync(Guid userId)

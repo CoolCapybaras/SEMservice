@@ -13,6 +13,8 @@ public class BoardTasksResponse
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public Guid? AssignedUserId { get; set; }
+    public string? AssigneeDisplayName { get; set; }
+    public string? AssigneeAvatarUrl { get; set; }
     public Guid CreatorId { get; set; }
     public DateTime? DueDate { get; set; }
     public BoardTaskPriority Priority { get; set; }

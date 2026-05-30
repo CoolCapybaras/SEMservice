@@ -76,6 +76,24 @@ public class EventNoteService : IEventNoteService
         var notes = await _noteRepository.GetByEventIdAsync(eventId);
         return ServiceResult<List<EventNoteResponse>>.Ok(notes.Select(ToResponse).ToList());
     }
+    
+    public async Task<ServiceResult<bool>> DeleteAsync(Guid eventId, Guid noteId, Guid userId)
+    {
+        var evt = await _eventRepository.GetEventByIdAsync(eventId);
+        if (evt == null)
+            return ServiceResult<bool>.Fail("Мероприятие не найдено");
+        if (evt.LifecycleState == EventLifecycleState.Archived)
+            return ServiceResult<bool>.Fail("Архивное мероприятие доступно только для чтения");
+
+        var note = await _noteRepository.GetByIdAsync(noteId);
+        if (note == null || note.EventId != eventId)
+            return ServiceResult<bool>.Fail("Заметка не найдена");
+        if (note.AuthorId != userId)
+            return ServiceResult<bool>.Fail("Удалить заметку может только автор");
+
+        await _noteRepository.DeleteAsync(note);
+        return ServiceResult<bool>.Ok(true);
+    }
 
     private static EventNoteResponse ToResponse(EventNote note)
     {
